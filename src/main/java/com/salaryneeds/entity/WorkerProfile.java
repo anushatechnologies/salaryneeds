@@ -40,8 +40,8 @@ public class WorkerProfile {
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
-    @Column(name = "trade")
-    private String trade;
+    @Column(name = "service")
+    private String service;
 
     @Column(name = "skills")
     private String skills;
