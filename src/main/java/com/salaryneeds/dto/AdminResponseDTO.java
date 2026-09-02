@@ -15,6 +15,6 @@ import java.util.UUID;
 public class AdminResponseDTO {
 
     private UUID id;
-    private String name;
-    private String email;
+    private String username;
+    private String mail;
 }

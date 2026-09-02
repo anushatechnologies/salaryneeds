@@ -23,8 +23,8 @@ public class AdminService {
 
     public AdminResponseDTO createAdmin(AdminRequestDTO adminRequestDTO) {
         Admin admin = Admin.builder()
-                .name(adminRequestDTO.getName())
-                .email(adminRequestDTO.getEmail())
+                .name(adminRequestDTO.getUsername())
+                .email(adminRequestDTO.getMail())
                 .passwordHash(passwordEncoder.encode(adminRequestDTO.getPassword()))
                 .build();
 
@@ -48,8 +48,8 @@ public class AdminService {
         Admin admin = adminRepository.findById(id)
                 .orElseThrow(() -> new AdminNotFoundException("Admin not found with id: " + id));
 
-        admin.setName(adminRequestDTO.getName());
-        admin.setEmail(adminRequestDTO.getEmail());
+        admin.setName(adminRequestDTO.getUsername());
+        admin.setEmail(adminRequestDTO.getMail());
 
         if (adminRequestDTO.getPassword() != null && !adminRequestDTO.getPassword().isEmpty()) {
             admin.setPasswordHash(passwordEncoder.encode(adminRequestDTO.getPassword()));
@@ -68,8 +68,8 @@ public class AdminService {
     private AdminResponseDTO mapToResponse(Admin admin) {
         return AdminResponseDTO.builder()
                 .id(admin.getId())
-                .name(admin.getName())
-                .email(admin.getEmail())
+                .username(admin.getName())
+                .mail(admin.getEmail())
                 .build();
     }
 }
