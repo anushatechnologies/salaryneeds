@@ -1,0 +1,227 @@
+{
+  "info": {
+    "_postman_id": "salaryneeds-api-collection",
+    "name": "Salary Needs - Customer & Address APIs",
+    "description": "Complete API collection for testing Customer and Address endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "CUSTOMER APIS",
+      "item": [
+        {
+          "name": "1. Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pavan Kumar\",\n  \"email\": \"pavan@example.com\",\n  \"phone\": \"9876543210\",\n  \"password\": \"Password@123\",\n  \"defaultAddress\": \"Hyderabad\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers"]
+            },
+            "description": "Create a new customer with email and phone validation"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Get All Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers"]
+            },
+            "description": "Retrieve all customers in the system"
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Customer by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}"]
+            },
+            "description": "Get a specific customer by UUID"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pavan Kumar Updated\",\n  \"email\": \"pavan.new@example.com\",\n  \"phone\": \"9876543210\",\n  \"defaultAddress\": \"Bangalore\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}"]
+            },
+            "description": "Update customer profile (name, email, phone, defaultAddress only)"
+          },
+          "response": []
+        },
+        {
+          "name": "5. Delete Customer",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}"]
+            },
+            "description": "Delete a customer and all associated addresses"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ADDRESS APIS",
+      "item": [
+        {
+          "name": "1. Create Address",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Home\",\n  \"addressLine\": \"12-34 Main Road, Apartment 5B\",\n  \"pincode\": \"500001\",\n  \"city\": \"Hyderabad\",\n  \"isDefault\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}", "addresses"]
+            },
+            "description": "Create a new address for a customer. Sets as default if specified."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Get All Addresses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}", "addresses"]
+            },
+            "description": "Get all addresses for a specific customer"
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Single Address",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses/{{addressId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}", "addresses", "{{addressId}}"]
+            },
+            "description": "Get a specific address (must belong to the specified customer)"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Update Address",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Home Sweet Home\",\n  \"addressLine\": \"12-34 Main Road, Apartment 5C\",\n  \"pincode\": \"500001\",\n  \"city\": \"Hyderabad\",\n  \"isDefault\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses/{{addressId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}", "addresses", "{{addressId}}"]
+            },
+            "description": "Update a specific address"
+          },
+          "response": []
+        },
+        {
+          "name": "5. Delete Address",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses/{{addressId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}", "addresses", "{{addressId}}"]
+            },
+            "description": "Delete a specific address"
+          },
+          "response": []
+        },
+        {
+          "name": "6. Set Default Address",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses/{{addressId}}/default",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}", "addresses", "{{addressId}}", "default"]
+            },
+            "description": "Set a specific address as the default address (only one default per customer)"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "default"
+    },
+    {
+      "key": "customerId",
+      "value": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "default"
+    },
+    {
+      "key": "addressId",
+      "value": "770e8400-e29b-41d4-a716-446655440222",
+      "type": "default"
+    }
+  ]
+}
