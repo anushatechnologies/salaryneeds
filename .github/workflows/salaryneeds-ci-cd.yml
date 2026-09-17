@@ -28,19 +28,8 @@ jobs:
       - name: Build application
         run: mvn clean package -DskipTests
 
-      # 4. Copy NEW JAR to EC2 /tmp
-      - name: Copy JAR to EC2
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "target/salaryneeds-0.0.1-SNAPSHOT.jar"
-          target: "/tmp"
-          overwrite: true
-
-      # 5. Deploy NEW JAR and restart application
-      - name: Deploy and restart SalaryNeeds
+      # 4. Stop application and remove old JAR
+      - name: Prepare EC2
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -48,27 +37,46 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             echo "Stopping SalaryNeeds..."
-            sudo systemctl stop salaryneeds
+            sudo systemctl stop salaryneeds || true
 
             echo "Removing old JAR..."
             sudo rm -f /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
-            echo "Copying new JAR..."
-            sudo cp /tmp/salaryneeds-0.0.1-SNAPSHOT.jar /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+            echo "Checking directory..."
+            ls -lh /opt/salaryneeds
+
+      # 5. Copy new JAR directly to EC2
+      - name: Copy JAR to EC2
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "target/salaryneeds-0.0.1-SNAPSHOT.jar"
+          target: "/opt/salaryneeds"
+          overwrite: true
+
+      # 6. Start application and verify health
+      - name: Start and verify SalaryNeeds
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Checking deployed JAR..."
+            ls -lh /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
             echo "Setting ownership..."
             sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
-
-            echo "Checking deployed JAR..."
-            ls -lh /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
             echo "Starting SalaryNeeds..."
             sudo systemctl start salaryneeds
 
             echo "Waiting for application..."
-            sleep 15
+            sleep 20
 
-            echo "Checking service status..."
+            echo "Checking service..."
             sudo systemctl status salaryneeds -l --no-pager
 
             echo "Checking port 8080..."
