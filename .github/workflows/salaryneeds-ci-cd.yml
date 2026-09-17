@@ -28,7 +28,7 @@ jobs:
       - name: Build application
         run: mvn clean package -DskipTests
 
-      # 4. Copy JAR to EC2
+      # 4. Copy NEW JAR to EC2 /tmp
       - name: Copy JAR to EC2
         uses: appleboy/scp-action@v1
         with:
@@ -36,17 +36,43 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "target/salaryneeds-0.0.1-SNAPSHOT.jar"
-          target: "/opt/salaryneeds"
+          target: "/tmp"
           overwrite: true
 
-      # 5. Restart application
-      - name: Restart SalaryNeeds
+      # 5. Deploy NEW JAR and restart application
+      - name: Deploy and restart SalaryNeeds
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo systemctl restart salaryneeds
-            sleep 5
-            sudo systemctl status salaryneeds --no-pager
+            echo "Stopping SalaryNeeds..."
+            sudo systemctl stop salaryneeds
+
+            echo "Removing old JAR..."
+            sudo rm -f /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+
+            echo "Copying new JAR..."
+            sudo cp /tmp/salaryneeds-0.0.1-SNAPSHOT.jar /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+
+            echo "Setting ownership..."
+            sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+
+            echo "Checking deployed JAR..."
+            ls -lh /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+
+            echo "Starting SalaryNeeds..."
+            sudo systemctl start salaryneeds
+
+            echo "Waiting for application..."
+            sleep 15
+
+            echo "Checking service status..."
+            sudo systemctl status salaryneeds -l --no-pager
+
+            echo "Checking port 8080..."
+            sudo ss -lntp | grep 8080
+
+            echo "Checking health..."
+            curl -f http://localhost:8080/actuator/health
