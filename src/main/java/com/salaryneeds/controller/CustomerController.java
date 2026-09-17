@@ -3,14 +3,17 @@ package com.salaryneeds.controller;
 import com.salaryneeds.dto.CustomerCreateRequestDTO;
 import com.salaryneeds.dto.CustomerResponseDTO;
 import com.salaryneeds.dto.CustomerUpdateRequestDTO;
+import com.salaryneeds.dto.PageResponseDTO;
 import com.salaryneeds.service.CustomerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -26,8 +29,16 @@ public class CustomerController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CustomerResponseDTO>> getAllCustomers() {
-        return ResponseEntity.ok(customerService.getAllCustomers());
+    public ResponseEntity<?> getAllCustomers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction
+    ) {
+        Sort sort = direction.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        PageResponseDTO<CustomerResponseDTO> response = customerService.getCustomersPaginated(pageable);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{customerId}")
@@ -38,14 +49,14 @@ public class CustomerController {
     @PutMapping("/{customerId}")
     public ResponseEntity<CustomerResponseDTO> updateCustomer(
             @PathVariable UUID customerId,
-            @Valid @RequestBody CustomerUpdateRequestDTO request) {
+            @Valid @RequestBody CustomerUpdateRequestDTO request
+    ) {
         return ResponseEntity.ok(customerService.updateCustomer(customerId, request));
     }
 
     @DeleteMapping("/{customerId}")
-    public ResponseEntity<Void> deleteCustomer(@PathVariable UUID customerId) {
-        customerService.deleteCustomer(customerId);
+    public ResponseEntity<Void> deactivateCustomer(@PathVariable UUID customerId) {
+        customerService.deactivateCustomer(customerId);
         return ResponseEntity.noContent().build();
     }
-
 }

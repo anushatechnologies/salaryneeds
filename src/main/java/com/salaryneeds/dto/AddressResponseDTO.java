@@ -1,11 +1,11 @@
 package com.salaryneeds.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -15,16 +15,17 @@ import java.util.UUID;
 public class AddressResponseDTO {
 
     private UUID id;
-
+    private UUID customerId;
     private String label;
-
+    private String house;
+    private String street;
     private String addressLine;
-
-    private String pincode;
-
     private String city;
-
-    @JsonProperty("isDefault")
+    private String pincode;
+    private Double lat;
+    private Double lng;
     private Boolean isDefault;
-
+    private String formattedAddress;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

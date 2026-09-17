@@ -13,8 +13,11 @@ public interface AddressRepository extends JpaRepository<Address, UUID> {
 
     List<Address> findByCustomerId(UUID customerId);
 
+    List<Address> findByCustomerIdOrderByCreatedAtAsc(UUID customerId);
+
     Optional<Address> findByIdAndCustomerId(UUID addressId, UUID customerId);
 
     List<Address> findByCustomerIdAndIsDefaultTrue(UUID customerId);
 
+    long countByCustomerId(UUID customerId);
 }

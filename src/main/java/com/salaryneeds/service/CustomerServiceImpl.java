@@ -1,14 +1,15 @@
 package com.salaryneeds.service;
 
-import com.salaryneeds.dto.CustomerCreateRequestDTO;
-import com.salaryneeds.dto.CustomerResponseDTO;
-import com.salaryneeds.dto.CustomerUpdateRequestDTO;
+import com.salaryneeds.dto.*;
+import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Customer;
 import com.salaryneeds.exception.CustomerNotFoundException;
 import com.salaryneeds.exception.DuplicateEmailException;
 import com.salaryneeds.exception.DuplicatePhoneException;
 import com.salaryneeds.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +35,10 @@ public class CustomerServiceImpl implements CustomerService {
             throw new DuplicatePhoneException("Phone already exists: " + request.getPhone());
         }
 
-        String passwordHash = passwordEncoder.encode(request.getPassword());
+        String rawPassword = (request.getPassword() != null && !request.getPassword().isBlank())
+                ? request.getPassword()
+                : "Customer@123";
+        String passwordHash = passwordEncoder.encode(rawPassword);
 
         Customer customer = Customer.builder()
                 .name(request.getName())
@@ -69,20 +73,39 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PageResponseDTO<CustomerResponseDTO> getCustomersPaginated(Pageable pageable) {
+        Page<Customer> page = customerRepository.findAll(pageable);
+        List<CustomerResponseDTO> content = page.getContent().stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+
+        return PageResponseDTO.<CustomerResponseDTO>builder()
+                .content(content)
+                .pageNumber(page.getNumber())
+                .pageSize(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .isFirst(page.isFirst())
+                .isLast(page.isLast())
+                .build();
+    }
+
+    @Override
     public CustomerResponseDTO updateCustomer(UUID customerId, CustomerUpdateRequestDTO request) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found with id: " + customerId));
 
-        if (request.getName() != null) {
+        if (request.getName() != null && !request.getName().isBlank()) {
             customer.setName(request.getName());
         }
-        if (request.getEmail() != null && !request.getEmail().equals(customer.getEmail())) {
+        if (request.getEmail() != null && !request.getEmail().isBlank() && !request.getEmail().equalsIgnoreCase(customer.getEmail())) {
             if (customerRepository.existsByEmail(request.getEmail())) {
                 throw new DuplicateEmailException("Email already exists: " + request.getEmail());
             }
             customer.setEmail(request.getEmail());
         }
-        if (request.getPhone() != null && !request.getPhone().equals(customer.getPhone())) {
+        if (request.getPhone() != null && !request.getPhone().isBlank() && !request.getPhone().equals(customer.getPhone())) {
             if (customerRepository.existsByPhone(request.getPhone())) {
                 throw new DuplicatePhoneException("Phone already exists: " + request.getPhone());
             }
@@ -91,9 +114,20 @@ public class CustomerServiceImpl implements CustomerService {
         if (request.getDefaultAddress() != null) {
             customer.setDefaultAddress(request.getDefaultAddress());
         }
+        if (request.getAccountStatus() != null && !request.getAccountStatus().isBlank()) {
+            customer.setAccountStatus(request.getAccountStatus().toUpperCase());
+        }
 
         Customer updatedCustomer = customerRepository.save(customer);
         return mapToResponseDTO(updatedCustomer);
+    }
+
+    @Override
+    public void deactivateCustomer(UUID customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new CustomerNotFoundException("Customer not found with id: " + customerId));
+        customer.setAccountStatus("INACTIVE");
+        customerRepository.save(customer);
     }
 
     @Override
@@ -104,6 +138,13 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     private CustomerResponseDTO mapToResponseDTO(Customer customer) {
+        List<AddressResponseDTO> addresses = null;
+        if (customer.getAddresses() != null) {
+            addresses = customer.getAddresses().stream()
+                    .map(this::mapAddressToDTO)
+                    .collect(Collectors.toList());
+        }
+
         return CustomerResponseDTO.builder()
                 .id(customer.getId())
                 .name(customer.getName())
@@ -113,7 +154,28 @@ public class CustomerServiceImpl implements CustomerService {
                 .emailVerified(customer.getEmailVerified())
                 .phoneVerified(customer.getPhoneVerified())
                 .accountStatus(customer.getAccountStatus())
+                .addresses(addresses)
+                .createdAt(customer.getCreatedAt())
+                .updatedAt(customer.getUpdatedAt())
                 .build();
     }
 
+    private AddressResponseDTO mapAddressToDTO(Address address) {
+        return AddressResponseDTO.builder()
+                .id(address.getId())
+                .customerId(address.getCustomer() != null ? address.getCustomer().getId() : null)
+                .label(address.getLabel())
+                .house(address.getHouse())
+                .street(address.getStreet())
+                .addressLine(address.getAddressLine())
+                .city(address.getCity())
+                .pincode(address.getPincode())
+                .lat(address.getLat())
+                .lng(address.getLng())
+                .isDefault(address.getIsDefault())
+                .formattedAddress(address.toFormattedAddress())
+                .createdAt(address.getCreatedAt())
+                .updatedAt(address.getUpdatedAt())
+                .build();
+    }
 }

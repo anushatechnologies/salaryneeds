@@ -23,7 +23,8 @@ public class AddressController {
     @PostMapping
     public ResponseEntity<AddressResponseDTO> createAddress(
             @PathVariable UUID customerId,
-            @Valid @RequestBody AddressCreateRequestDTO request) {
+            @Valid @RequestBody AddressCreateRequestDTO request
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(addressService.createAddress(customerId, request));
     }
 
@@ -35,7 +36,8 @@ public class AddressController {
     @GetMapping("/{addressId}")
     public ResponseEntity<AddressResponseDTO> getAddressById(
             @PathVariable UUID customerId,
-            @PathVariable UUID addressId) {
+            @PathVariable UUID addressId
+    ) {
         return ResponseEntity.ok(addressService.getAddressById(customerId, addressId));
     }
 
@@ -43,24 +45,33 @@ public class AddressController {
     public ResponseEntity<AddressResponseDTO> updateAddress(
             @PathVariable UUID customerId,
             @PathVariable UUID addressId,
-            @Valid @RequestBody AddressUpdateRequestDTO request) {
+            @Valid @RequestBody AddressUpdateRequestDTO request
+    ) {
         return ResponseEntity.ok(addressService.updateAddress(customerId, addressId, request));
     }
 
     @DeleteMapping("/{addressId}")
     public ResponseEntity<Void> deleteAddress(
             @PathVariable UUID customerId,
-            @PathVariable UUID addressId) {
+            @PathVariable UUID addressId
+    ) {
         addressService.deleteAddress(customerId, addressId);
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{addressId}/default")
-    public ResponseEntity<Void> setDefaultAddress(
+    @PutMapping("/{addressId}/default")
+    public ResponseEntity<AddressResponseDTO> setDefaultAddressPut(
             @PathVariable UUID customerId,
-            @PathVariable UUID addressId) {
-        addressService.setDefaultAddress(customerId, addressId);
-        return ResponseEntity.noContent().build();
+            @PathVariable UUID addressId
+    ) {
+        return ResponseEntity.ok(addressService.setDefaultAddress(customerId, addressId));
     }
 
+    @PatchMapping("/{addressId}/default")
+    public ResponseEntity<AddressResponseDTO> setDefaultAddressPatch(
+            @PathVariable UUID customerId,
+            @PathVariable UUID addressId
+    ) {
+        return ResponseEntity.ok(addressService.setDefaultAddress(customerId, addressId));
+    }
 }

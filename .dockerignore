@@ -1,0 +1,14 @@
+target/
+!target/*.jar
+.git/
+.gitignore
+.vscode/
+.idea/
+*.iml
+*.log
+Dockerfile*
+docker-compose*
+*.md
+.gemini/
+apache-maven-*/
+maven.zip

@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -47,16 +49,27 @@ public class WorkerProfile {
     private String skills;
 
     @Column(name = "experience_years")
-    private Integer experienceYears;
+    @Builder.Default
+    private Integer experienceYears = 0;
 
     @Column(name = "pincode")
     private String pincode;
 
     @Column(name = "verified", nullable = false)
-    private Boolean verified;
+    @Builder.Default
+    private Boolean verified = false;
 
     @Column(name = "rating_avg", precision = 3, scale = 2)
-    private BigDecimal ratingAvg;
+    @Builder.Default
+    private BigDecimal ratingAvg = BigDecimal.valueOf(5.00);
+
+    @Column(name = "completed_jobs_count")
+    @Builder.Default
+    private Integer completedJobsCount = 0;
+
+    @Column(name = "duty_online", nullable = false)
+    @Builder.Default
+    private Boolean dutyOnline = true;
 
     @Column(name = "last_lat")
     private Double lastLat;
@@ -68,12 +81,22 @@ public class WorkerProfile {
     private LocalDateTime lastSeenAt;
 
     @Column(name = "email_verified", nullable = false)
-    private Boolean emailVerified;
+    @Builder.Default
+    private Boolean emailVerified = false;
 
     @Column(name = "phone_verified", nullable = false)
-    private Boolean phoneVerified;
+    @Builder.Default
+    private Boolean phoneVerified = false;
 
     @Column(name = "account_status", nullable = false)
-    private String accountStatus;
+    @Builder.Default
+    private String accountStatus = "ACTIVE";
 
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }
