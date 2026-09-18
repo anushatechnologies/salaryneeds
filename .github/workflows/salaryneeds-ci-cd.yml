@@ -82,18 +82,18 @@ jobs:
             sudo chmod 755 /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
             echo "Starting SalaryNeeds..."
-            sudo systemctl start salaryneeds
+            sudo systemctl restart salaryneeds
 
             echo "Waiting for application to become healthy..."
             HEALTHY=0
-            for i in {1..12}; do
+            for i in {1..24}; do
               if curl -s -f http://localhost:8080/actuator/health > /dev/null; then
                 echo "Application is healthy!"
                 curl http://localhost:8080/actuator/health
                 HEALTHY=1
                 break
               fi
-              echo "Waiting for app to start... ($i/12)"
+              echo "Waiting for app to start... ($i/24)"
               sleep 5
             done
 
