@@ -24,6 +24,7 @@ import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,6 +32,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class BookingServiceImpl implements BookingService {
+
+    public static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Kolkata");
 
     private final BookingRepository bookingRepository;
     private final CustomerRepository customerRepository;
@@ -44,8 +47,9 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional(readOnly = true)
     public List<SlotResponseDTO> getAvailableSlots(Long serviceId, LocalDate date) {
-        LocalDate targetDate = (date != null) ? date : LocalDate.now();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        LocalDate targetDate = (date != null) ? date : today;
+        LocalDateTime now = LocalDateTime.now(BUSINESS_ZONE);
 
         List<SlotDefinition> definitions = Arrays.asList(
                 new SlotDefinition("SLOT-0912", "09:00 AM - 12:00 PM", LocalTime.of(9, 0), LocalTime.of(12, 0)),
@@ -63,10 +67,10 @@ public class BookingServiceImpl implements BookingService {
             boolean isAvailable = true;
             String message = "Available";
 
-            if (targetDate.isBefore(LocalDate.now())) {
+            if (targetDate.isBefore(today)) {
                 isAvailable = false;
                 message = "Slot date is in the past";
-            } else if (targetDate.isEqual(LocalDate.now()) && now.isAfter(cutoffTime)) {
+            } else if (targetDate.isEqual(today) && now.isAfter(cutoffTime)) {
                 isAvailable = false;
                 message = "Booking cutoff time passed for this slot";
             } else if (serviceId != null) {
