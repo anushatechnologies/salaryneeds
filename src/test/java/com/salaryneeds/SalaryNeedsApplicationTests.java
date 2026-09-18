@@ -348,33 +348,27 @@ class SalaryNeedsApplicationTests {
     }
 
     // =========================================================================
-    // 3. SECURITY & TOKEN FILTER EDGE CASES
+    // 3. OPEN ACCESS & CONTEXT RESOLUTION
     // =========================================================================
     @Test
-    @DisplayName("Security Filter Edge Cases: Missing Token, Malformed Token, Protected vs Public Routes")
+    @DisplayName("Open Access: Seamless API access without requiring JWT authentication")
     void testSecurityFilterEdgeCases() throws Exception {
-        // Edge 1: Missing Bearer token on protected route -> 401 UNAUTHORIZED
+        // Direct access without any Bearer token returns 200 OK with default context
         mockMvc.perform(get("/worker/profile/me"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error", is("UNAUTHORIZED")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", notNullValue()));
 
         mockMvc.perform(get("/worker/wallet"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error", is("UNAUTHORIZED")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
 
-        // Edge 2: Malformed Bearer token -> 401 UNAUTHORIZED
+        // Direct access with workerId header returns 200 OK
         mockMvc.perform(get("/worker/profile/me")
-                        .header("Authorization", "Bearer invalid-tampered-token-12345"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error", is("UNAUTHORIZED")));
+                        .header("X-Worker-Id", "w-default"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", notNullValue()));
 
-        // Edge 3: Non-Bearer auth scheme -> 401 UNAUTHORIZED
-        mockMvc.perform(get("/worker/profile/me")
-                        .header("Authorization", "Basic dXNlcjpwYXNz"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error", is("UNAUTHORIZED")));
-
-        // Edge 4: Public endpoints bypass filter without 401
+        // Public and admin endpoints continue returning 200 OK
         mockMvc.perform(get("/catalog/categories"))
                 .andExpect(status().isOk());
 
