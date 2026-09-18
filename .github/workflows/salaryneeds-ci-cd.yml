@@ -77,17 +77,34 @@ jobs:
             echo "Setting ownership..."
             sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
-            echo "Starting SalaryNeeds..."
-            sudo systemctl start salaryneeds
+            echo "Restarting SalaryNeeds service..."
+            sudo systemctl restart salaryneeds
 
-            echo "Waiting for application..."
-            sleep 20
+            echo "Polling health endpoint until application is fully initialized..."
+            RETRY=0
+            MAX_RETRIES=30
+            SUCCESS=0
 
-            echo "Checking service..."
-            sudo systemctl status salaryneeds -l --no-pager
+            while [ $RETRY -lt $MAX_RETRIES ]; do
+              if curl -s -f http://localhost:8083/actuator/health > /dev/null 2>&1 || curl -s -f http://localhost:8080/actuator/health > /dev/null 2>&1; then
+                echo "✅ SalaryNeeds is UP and HEALTHY!"
+                SUCCESS=1
+                break
+              fi
+              echo "Application is starting up... (attempt $((RETRY+1))/$MAX_RETRIES - waiting 3s)"
+              sleep 3
+              RETRY=$((RETRY+1))
+            done
 
-            echo "Checking port 8083..."
-            sudo ss -lntp | grep 8083 || sudo ss -lntp | grep 8080
+            if [ $SUCCESS -ne 1 ]; then
+              echo "❌ Health check timed out after 90s. Service logs:"
+              sudo systemctl status salaryneeds -l --no-pager || true
+              sudo journalctl -u salaryneeds -n 50 --no-pager || true
+              exit 1
+            fi
 
-            echo "Checking health..."
-            curl -f http://localhost:8083/actuator/health || curl -f http://localhost:8080/actuator/health
+            echo "Listening Ports:"
+            sudo ss -lntp | grep -E "8083|8080" || true
+
+            echo "Health check response:"
+            curl -s http://localhost:8083/actuator/health || curl -s http://localhost:8080/actuator/health
