@@ -3,7 +3,9 @@ name: SalaryNeeds CI/CD
 on:
   push:
     branches:
+      - main
       - master
+  workflow_dispatch:
 
 concurrency:
   group: production-deployment
