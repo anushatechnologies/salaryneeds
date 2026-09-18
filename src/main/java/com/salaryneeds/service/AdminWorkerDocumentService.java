@@ -100,13 +100,9 @@ public class AdminWorkerDocumentService {
             parsedWorkerId = doc.getWorkerId();
         }
 
-        String docTypeStr = "AADHAR_CARD";
+        String docTypeStr = "AADHAAR_CARD";
         if (doc.getDocType() != null) {
-            if (doc.getDocType() == DocType.AADHAAR_CARD) {
-                docTypeStr = "AADHAR_CARD";
-            } else {
-                docTypeStr = doc.getDocType().name();
-            }
+            docTypeStr = doc.getDocType().name();
         }
 
         String docUrl = doc.getDocumentUrl();

@@ -625,7 +625,7 @@ class SalaryNeedsApplicationTests {
         mockMvc.perform(get("/admin/workers/documents"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))))
-                .andExpect(jsonPath("$[0].document_type", is("AADHAR_CARD")))
+                .andExpect(jsonPath("$[0].document_type", is("AADHAAR_CARD")))
                 .andExpect(jsonPath("$[0].document_url", notNullValue()));
 
         // 2. Get Document by ID (GET /admin/workers/documents/1)
@@ -633,7 +633,7 @@ class SalaryNeedsApplicationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.worker_id", is(1)))
-                .andExpect(jsonPath("$.document_type", is("AADHAR_CARD")))
+                .andExpect(jsonPath("$.document_type", is("AADHAAR_CARD")))
                 .andExpect(jsonPath("$.document_url", notNullValue()));
 
         // 3. Approve Document (POST /admin/workers/documents/1/approve)
