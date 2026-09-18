@@ -25,10 +25,12 @@ public class BankUpdateRequest {
     private String accountNumber;
 
     @NotBlank(message = "IFSC code is required")
+    @JsonProperty("ifsc")
+    @JsonAlias({"ifsc", "ifscCode", "ifsc_code"})
     private String ifsc;
 
     @NotBlank(message = "Account holder name is required")
     @JsonProperty("account_holder")
-    @JsonAlias({"accountHolder", "account_holder"})
+    @JsonAlias({"accountHolder", "account_holder", "accountHolderName", "account_holder_name"})
     private String accountHolder;
 }
