@@ -62,7 +62,9 @@ public class BookingServiceImpl implements BookingService {
 
         for (SlotDefinition def : definitions) {
             LocalDateTime slotStart = targetDate.atTime(def.startTime);
-            LocalDateTime cutoffTime = slotStart.minusHours(1); // 1 hour cutoff prior to slot start
+            LocalDateTime slotEnd = targetDate.atTime(def.endTime);
+            // Instamart-style: Slot remains active and bookable until the slot window ends (e.g., 3:00 PM for 12:00 PM - 03:00 PM)
+            LocalDateTime cutoffTime = slotEnd;
 
             boolean isAvailable = true;
             String message = "Available";

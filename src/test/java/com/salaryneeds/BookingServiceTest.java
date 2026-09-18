@@ -231,4 +231,17 @@ class BookingServiceTest {
         assertTrue(slots.stream().anyMatch(s -> s.getSlotId().equals("SLOT-0912")));
         assertTrue(slots.stream().anyMatch(s -> s.getSlotId().equals("SLOT-1215")));
     }
+
+    @Test
+    @DisplayName("Dynamic Slots - Instamart-style cutoff matches slot end time")
+    void testGetAvailableSlots_InstamartCutoff() {
+        LocalDate testDate = LocalDate.now(BookingServiceImpl.BUSINESS_ZONE).plusDays(1);
+        List<SlotResponseDTO> slots = bookingService.getAvailableSlots(1L, testDate);
+
+        assertNotNull(slots);
+        SlotResponseDTO slot1215 = slots.stream().filter(s -> s.getSlotId().equals("SLOT-1215")).findFirst().orElseThrow();
+        assertEquals("15:00", slot1215.getEndTime());
+        assertEquals(testDate.atTime(15, 0), slot1215.getCutoffTime());
+        assertTrue(slot1215.getIsAvailable());
+    }
 }
