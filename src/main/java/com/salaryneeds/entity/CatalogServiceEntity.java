@@ -10,57 +10,34 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
-@Table(name = "SERVICES", uniqueConstraints = {
-        @UniqueConstraint(name = "uq_services_category_name", columnNames = {"category_id", "name"})
-})
+@Table(name = "CATALOG_SERVICES")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ServiceItem {
+public class CatalogServiceEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
-    private Category category;
-
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, unique = true, length = 100)
     private String name;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description", length = 500)
     private String description;
-
-    @Column(name = "base_price", nullable = false, precision = 10, scale = 2)
-    @Builder.Default
-    private BigDecimal basePrice = BigDecimal.ZERO;
-
-    @Column(name = "discount_price", precision = 10, scale = 2)
-    private BigDecimal discountPrice;
-
-    @Column(name = "duration_minutes", nullable = false)
-    @Builder.Default
-    private Integer durationMinutes = 60;
-
-    @Column(name = "inclusions", columnDefinition = "TEXT")
-    private String inclusions;
-
-    @Column(name = "exclusions", columnDefinition = "TEXT")
-    private String exclusions;
 
     @Column(name = "image_url")
     private String imageUrl;
 
-    @Column(name = "rating_avg", precision = 3, scale = 2)
+    @Column(name = "display_order")
     @Builder.Default
-    private BigDecimal ratingAvg = BigDecimal.valueOf(4.80);
+    private Integer displayOrder = 0;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
@@ -92,17 +69,11 @@ public class ServiceItem {
         if (this.name != null) {
             this.name = CatalogNameNormalizer.toLowerCaseNormalized(this.name);
         }
-        if (this.basePrice == null) {
-            this.basePrice = BigDecimal.ZERO;
-        }
-        if (this.durationMinutes == null) {
-            this.durationMinutes = 60;
-        }
-        if (this.ratingAvg == null) {
-            this.ratingAvg = BigDecimal.valueOf(4.80);
-        }
         if (this.isActive == null) {
             this.isActive = true;
+        }
+        if (this.displayOrder == null) {
+            this.displayOrder = 0;
         }
     }
 }
