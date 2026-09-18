@@ -1,52 +1,37 @@
 package com.salaryneeds.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
+import lombok.*;
 
 @Entity
-@Table(name = "CATEGORIES")
-@Getter
-@Setter
+@Table(name = "categories")
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Category {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @Column(length = 64)
+    private String id;
 
-    @Column(name = "name", nullable = false, unique = true)
+    @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "description", length = 500)
+    @Column(nullable = false, unique = true, length = 50)
+    private String code;
+
+    @Column(name = "icon_name", length = 50)
+    private String iconName;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
-
-    @Column(name = "icon_url")
-    private String iconUrl;
-
-    @Column(name = "display_order")
-    @Builder.Default
-    private Integer displayOrder = 0;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Column(name = "display_order")
+    @Builder.Default
+    private Integer displayOrder = 0;
 }

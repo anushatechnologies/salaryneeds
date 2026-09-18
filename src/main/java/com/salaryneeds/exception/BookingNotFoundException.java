@@ -1,7 +1,9 @@
 package com.salaryneeds.exception;
 
-public class BookingNotFoundException extends RuntimeException {
-    public BookingNotFoundException(String message) {
-        super(message);
+import org.springframework.http.HttpStatus;
+
+public class BookingNotFoundException extends ApiException {
+    public BookingNotFoundException(String bookingId) {
+        super("BOOKING_NOT_FOUND", "Booking with ID '" + bookingId + "' does not exist.", HttpStatus.NOT_FOUND);
     }
 }

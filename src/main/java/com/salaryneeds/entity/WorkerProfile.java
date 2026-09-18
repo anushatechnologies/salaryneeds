@@ -1,75 +1,76 @@
 package com.salaryneeds.entity;
 
+import com.salaryneeds.entity.enums.AccountStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 @Entity
-@Table(name = "WORKER_PROFILES")
-@Getter
-@Setter
+@Table(name = "worker_profiles")
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class WorkerProfile {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @Column(length = 64)
+    private String id;
 
-    @Column(name = "name", nullable = false)
+    @Column(nullable = false, length = 120)
     private String name;
 
-    @Column(name = "email", nullable = false, unique = true)
-    private String email;
-
-    @Column(name = "phone", nullable = false, unique = true)
+    @Column(nullable = false, length = 20)
     private String phone;
 
-    @Column(name = "password_hash", nullable = false)
-    private String passwordHash;
+    @Column(length = 254)
+    private String email;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
-    private Category category;
+    @Column(name = "category_id", length = 64)
+    private String categoryId;
 
-    @Column(name = "service")
-    private String service;
+    @Column(name = "category_name", length = 100)
+    private String categoryName;
 
-    @Column(name = "skills")
-    private String skills;
+    @Column(name = "sub_category_id", length = 64)
+    private String subCategoryId;
+
+    @Column(name = "sub_category_name", length = 100)
+    private String subCategoryName;
+
+    @Column(length = 100)
+    private String trade;
+
+    @Column(name = "skills_csv", length = 1000)
+    private String skillsCsv;
 
     @Column(name = "experience_years")
     @Builder.Default
     private Integer experienceYears = 0;
 
-    @Column(name = "pincode")
+    @Column(length = 10)
     private String pincode;
 
-    @Column(name = "verified", nullable = false)
+    @Column(length = 100)
+    private String city;
+
+    @Column(length = 500)
+    private String address;
+
+    @Column(name = "service_areas_csv", length = 1000)
+    private String serviceAreasCsv;
+
+    @Column(nullable = false)
     @Builder.Default
     private Boolean verified = false;
 
-    @Column(name = "rating_avg", precision = 3, scale = 2)
-    @Builder.Default
-    private BigDecimal ratingAvg = BigDecimal.valueOf(5.00);
-
-    @Column(name = "completed_jobs_count")
-    @Builder.Default
-    private Integer completedJobsCount = 0;
-
     @Column(name = "duty_online", nullable = false)
     @Builder.Default
-    private Boolean dutyOnline = true;
+    private Boolean dutyOnline = false;
 
     @Column(name = "last_lat")
     private Double lastLat;
@@ -77,26 +78,81 @@ public class WorkerProfile {
     @Column(name = "last_lng")
     private Double lastLng;
 
-    @Column(name = "last_seen_at")
-    private LocalDateTime lastSeenAt;
-
-    @Column(name = "email_verified", nullable = false)
+    @Column(name = "rating_avg")
     @Builder.Default
-    private Boolean emailVerified = false;
+    private Double ratingAvg = 5.0;
 
-    @Column(name = "phone_verified", nullable = false)
+    @Column(name = "total_reviews")
     @Builder.Default
-    private Boolean phoneVerified = false;
+    private Integer totalReviews = 0;
 
-    @Column(name = "account_status", nullable = false)
+    @Column(name = "acceptance_rate")
     @Builder.Default
-    private String accountStatus = "ACTIVE";
+    private Double acceptanceRate = 100.0;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "completion_rate")
+    @Builder.Default
+    private Double completionRate = 100.0;
 
-    @UpdateTimestamp
+    @Column(length = 50)
+    @Builder.Default
+    private String tier = "STANDARD";
+
+    @Column(name = "avatar_url", length = 1000)
+    private String avatarUrl;
+
+    @Column(name = "fcm_token", length = 500)
+    private String fcmToken;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status", nullable = false, length = 30)
+    @Builder.Default
+    private AccountStatus accountStatus = AccountStatus.PENDING_APPROVAL;
+
+    @Column(name = "created_at", nullable = false)
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Builder.Default
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    public List<String> getSkillsList() {
+        if (skillsCsv == null || skillsCsv.isBlank()) return new ArrayList<>();
+        return Arrays.asList(skillsCsv.split("\\s*,\\s*"));
+    }
+
+    public void setSkillsList(List<String> skills) {
+        if (skills == null || skills.isEmpty()) {
+            this.skillsCsv = "";
+        } else {
+            this.skillsCsv = String.join(", ", skills);
+        }
+    }
+
+    public List<String> getServiceAreasList() {
+        if (serviceAreasCsv == null || serviceAreasCsv.isBlank()) return new ArrayList<>();
+        return Arrays.asList(serviceAreasCsv.split("\\s*,\\s*"));
+    }
+
+    public void setServiceAreasList(List<String> areas) {
+        if (areas == null || areas.isEmpty()) {
+            this.serviceAreasCsv = "";
+        } else {
+            this.serviceAreasCsv = String.join(", ", areas);
+        }
+    }
 }

@@ -2,124 +2,159 @@ package com.salaryneeds.entity;
 
 import com.salaryneeds.entity.enums.BookingStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "BOOKINGS")
-@Getter
-@Setter
+@Table(name = "bookings")
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Booking {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(length = 64)
+    private String id;
 
-    @Column(name = "customer_id", nullable = false, length = 36)
-    private String customerId;
+    @Column(name = "booking_number", length = 64)
+    private String bookingNumber;
 
-    @Column(name = "worker_id", length = 36)
+    @Column(name = "worker_id", length = 64)
     private String workerId;
 
-    @Column(name = "service_id", nullable = false)
-    private Long serviceId;
+    @Column(name = "customer_id", length = 64)
+    private String customerId;
 
-    @Column(name = "service_name", length = 100)
-    private String serviceName;
+    @Column(name = "customer_name", length = 120)
+    private String customerName;
 
-    @Column(name = "category_id", length = 50)
+    @Column(name = "customer_phone", length = 30)
+    private String customerPhone;
+
+    @Column(name = "customer_rating")
+    @Builder.Default
+    private Double customerRating = 4.8;
+
+    @Column(name = "category_id", length = 64)
     private String categoryId;
 
-    @Column(name = "booking_date", nullable = false)
-    private LocalDate bookingDate;
+    @Column(name = "category_name", length = 100)
+    private String categoryName;
+
+    @Column(name = "service_title", length = 150)
+    private String serviceTitle;
+
+    @Column(length = 1000)
+    private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 30)
+    @Column(nullable = false, length = 30)
     @Builder.Default
     private BookingStatus status = BookingStatus.PENDING;
 
-    @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal totalAmount;
+    @Column(length = 500)
+    private String address;
 
-    @Column(name = "discount_amount", precision = 10, scale = 2)
+    @Column(length = 20)
+    private String pincode;
+
+    private Double lat;
+    private Double lng;
+
+    @Column(name = "scheduled_at", length = 100)
+    private String scheduledAt;
+
+    @Column(name = "scheduled_date", length = 30)
+    private String scheduledDate;
+
+    @Column(name = "slot_start", length = 30)
+    private String slotStart;
+
+    @Column(name = "slot_end", length = 30)
+    private String slotEnd;
+
+    @Column(name = "customer_otp", length = 10)
+    private String customerOtp;
+
+    @Column(name = "total_price", precision = 12, scale = 2)
     @Builder.Default
-    private BigDecimal discountAmount = BigDecimal.ZERO;
+    private BigDecimal totalPrice = BigDecimal.ZERO;
 
-    @Column(name = "payable_amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal payableAmount;
+    @Column(name = "payout_worker", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal payoutWorker = BigDecimal.ZERO;
 
-    @Column(name = "address_id", length = 36)
-    private String addressId;
+    @Column(name = "base_price", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal basePrice = BigDecimal.ZERO;
 
-    @Column(name = "address_summary", length = 500)
-    private String addressSummary;
+    @Column(name = "extra_parts_total", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal extraPartsTotal = BigDecimal.ZERO;
 
-    @Column(name = "slot_id", length = 50)
-    private String slotId;
+    @Column(length = 50)
+    @Builder.Default
+    private String duration = "1.5 Hours";
 
-    @Column(name = "scheduled_time", length = 50)
-    private String scheduledTime;
-
-    @Column(name = "coupon_code", length = 30)
-    private String couponCode;
-
-    @Column(name = "notes", length = 500)
-    private String notes;
-
-    @Column(name = "cancellation_reason")
+    @Column(name = "cancellation_reason", length = 500)
     private String cancellationReason;
 
-    @Column(name = "cancellation_fee", precision = 10, scale = 2)
+    @Column(name = "priority_label", length = 50)
     @Builder.Default
-    private BigDecimal cancellationFee = BigDecimal.ZERO;
+    private String priorityLabel = "Normal";
 
-    @Column(name = "refund_amount", precision = 10, scale = 2)
+    @Column(name = "customer_avatar", length = 1000)
+    private String customerAvatar;
+
+    @Column(name = "sub_category_id", length = 64)
+    private String subCategoryId;
+
+    @Column(name = "sub_category_name", length = 100)
+    private String subCategoryName;
+
+    @Column(name = "location_area", length = 100)
+    private String locationArea;
+
+    @Column(name = "platform_commission", precision = 12, scale = 2)
     @Builder.Default
-    private BigDecimal refundAmount = BigDecimal.ZERO;
+    private BigDecimal platformCommission = BigDecimal.ZERO;
 
-    @Column(name = "cancelled_at")
-    private LocalDateTime cancelledAt;
+    @Column(name = "before_photos_csv", columnDefinition = "TEXT")
+    private String beforePhotosCsv;
 
-    @Column(name = "start_pin_hash")
-    private String startPinHash;
+    @Column(name = "after_photos_csv", columnDefinition = "TEXT")
+    private String afterPhotosCsv;
 
-    @Column(name = "start_pin_encrypted")
-    private String startPinEncrypted;
+    @Column(name = "cancelled_by", length = 30)
+    private String cancelledBy;
 
-    @Column(name = "start_pin_verified", nullable = false)
+    @Column(name = "is_favourite")
     @Builder.Default
-    private Boolean startPinVerified = false;
+    private Boolean isFavourite = false;
 
-    @Column(name = "pin_attempts")
-    @Builder.Default
-    private Integer pinAttempts = 0;
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
 
-    @Column(name = "pin_expires_at")
-    private LocalDateTime pinExpiresAt;
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
 
-    @Column(name = "service_started_at")
-    private LocalDateTime serviceStartedAt;
-
-    @Column(name = "service_completed_at")
-    private LocalDateTime serviceCompletedAt;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

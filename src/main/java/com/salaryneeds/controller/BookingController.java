@@ -1,106 +1,97 @@
 package com.salaryneeds.controller;
 
 import com.salaryneeds.dto.*;
-import com.salaryneeds.entity.enums.BookingStatus;
+import com.salaryneeds.security.WorkerContext;
 import com.salaryneeds.service.BookingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/bookings")
+@RequestMapping({"/worker/bookings", "/v1/worker/bookings"})
 @RequiredArgsConstructor
 public class BookingController {
 
     private final BookingService bookingService;
 
-    @GetMapping("/slots")
-    public ResponseEntity<List<SlotResponseDTO>> getAvailableSlots(
-            @RequestParam(value = "service_id", required = false) Long serviceId,
-            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
-    ) {
-        return ResponseEntity.ok(bookingService.getAvailableSlots(serviceId, date));
+    @GetMapping("/nearby-leads")
+    public ResponseEntity<Map<String, Object>> getNearbyLeads(
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(name = "radius_km", required = false) Double radiusKm) {
+        List<NearbyLeadDTO> leads = bookingService.getNearbyLeads(lat, lng, radiusKm);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("count", leads.size());
+        response.put("leads", leads);
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping
-    public ResponseEntity<BookingResponseDTO> createBooking(
-            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader,
-            @Valid @RequestBody BookingCreateRequestDTO request
-    ) {
-        BookingResponseDTO response = bookingService.createBooking(request, customerIdHeader);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    @PostMapping("/{bookingId}/accept")
+    public ResponseEntity<Map<String, Object>> acceptBooking(
+            @PathVariable String bookingId,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
+        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
+        Map<String, Object> response = bookingService.acceptBooking(bookingId, workerId);
+        return ResponseEntity.ok(response);
     }
 
-    @GetMapping
-    public ResponseEntity<PageResponseDTO<BookingResponseDTO>> getBookings(
-            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader,
-            @RequestParam(value = "customerId", required = false) String customerIdParam,
-            @RequestParam(value = "status", required = false) String statusFilter,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String direction
-    ) {
-        String effectiveCustomerId = (customerIdHeader != null && !customerIdHeader.isBlank())
-                ? customerIdHeader.trim()
-                : customerIdParam;
-
-        Sort sort = direction.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-
-        PageResponseDTO<BookingResponseDTO> bookings = bookingService.getBookings(effectiveCustomerId, statusFilter, pageable);
-        return ResponseEntity.ok(bookings);
+    @PostMapping("/{bookingId}/decline")
+    public ResponseEntity<Map<String, Object>> declineBooking(
+            @PathVariable String bookingId,
+            @RequestBody(required = false) DeclineLeadRequest request,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
+        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
+        Map<String, Object> response = bookingService.declineBooking(bookingId, workerId, request);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{bookingId}")
-    public ResponseEntity<BookingResponseDTO> getBookingById(
-            @PathVariable Long bookingId,
-            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader
-    ) {
-        return ResponseEntity.ok(bookingService.getBookingById(bookingId, customerIdHeader));
+    public ResponseEntity<Map<String, Object>> getBooking(
+            @PathVariable String bookingId) {
+        Map<String, Object> response = bookingService.getBookingDetails(bookingId);
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{bookingId}/cancel")
-    public ResponseEntity<CancelBookingResponseDTO> cancelBooking(
-            @PathVariable Long bookingId,
-            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader,
-            @Valid @RequestBody BookingCancelRequestDTO request
-    ) {
-        return ResponseEntity.ok(bookingService.cancelBooking(bookingId, request, customerIdHeader));
+    @PatchMapping("/{bookingId}/status")
+    public ResponseEntity<Map<String, Object>> updateStatus(
+            @PathVariable String bookingId,
+            @Valid @RequestBody BookingStatusUpdateRequest request,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
+        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
+        Map<String, Object> response = bookingService.updateBookingStatus(bookingId, workerId, request.getStatus());
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{bookingId}/regenerate-pin")
-    public ResponseEntity<BookingResponseDTO> regeneratePin(
-            @PathVariable Long bookingId,
-            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader
-    ) {
-        return ResponseEntity.ok(bookingService.regenerateStartPin(bookingId, customerIdHeader));
+    @PostMapping("/{bookingId}/extra-parts")
+    public ResponseEntity<Map<String, Object>> addExtraPart(
+            @PathVariable String bookingId,
+            @Valid @RequestBody ExtraPartRequest request) {
+        Map<String, Object> response = bookingService.addExtraPart(bookingId, request);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    // Lifecycle transition endpoint (For Worker / System integration & Postman testing)
-    @PostMapping("/{bookingId}/status")
-    public ResponseEntity<BookingResponseDTO> updateBookingStatus(
-            @PathVariable Long bookingId,
-            @Valid @RequestBody BookingStatusUpdateRequestDTO request
-    ) {
-        return ResponseEntity.ok(bookingService.updateBookingStatus(bookingId, request.getStatus(), request.getWorkerId()));
+    @PostMapping("/{bookingId}/checklist/{itemId}/toggle")
+    public ResponseEntity<Map<String, Object>> toggleChecklist(
+            @PathVariable String bookingId,
+            @PathVariable String itemId) {
+        Map<String, Object> response = bookingService.toggleChecklistItem(bookingId, itemId);
+        return ResponseEntity.ok(response);
     }
 
-    // Verification endpoint for Worker to input customer's PIN
-    @PostMapping("/{bookingId}/verify-pin")
-    public ResponseEntity<BookingResponseDTO> verifyPin(
-            @PathVariable Long bookingId,
-            @Valid @RequestBody VerifyPinRequestDTO request
-    ) {
-        return ResponseEntity.ok(bookingService.verifyPin(bookingId, request.getPin()));
+    @PostMapping("/{bookingId}/verify-otp")
+    public ResponseEntity<Map<String, Object>> verifyOtp(
+            @PathVariable String bookingId,
+            @Valid @RequestBody VerifyOtpRequest request,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
+        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
+        Map<String, Object> response = bookingService.verifyOtpAndComplete(bookingId, workerId, request.getOtp());
+        return ResponseEntity.ok(response);
     }
 }

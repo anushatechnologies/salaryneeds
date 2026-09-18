@@ -1,39 +1,24 @@
 package com.salaryneeds.controller;
 
-import com.salaryneeds.dto.CategoryDTO;
-import com.salaryneeds.dto.ServiceItemDTO;
 import com.salaryneeds.service.CatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/catalog")
+@RequestMapping({"/catalog", "/v1/catalog"})
 @RequiredArgsConstructor
 public class CatalogController {
 
     private final CatalogService catalogService;
 
     @GetMapping("/categories")
-    public ResponseEntity<List<CategoryDTO>> getCategories() {
-        return ResponseEntity.ok(catalogService.getAllCategories());
-    }
-
-    @GetMapping("/services")
-    public ResponseEntity<List<ServiceItemDTO>> getServices(
-            @RequestParam(value = "category_id", required = false) UUID categoryId
-    ) {
-        if (categoryId != null) {
-            return ResponseEntity.ok(catalogService.getServicesByCategory(categoryId));
-        }
-        return ResponseEntity.ok(catalogService.getAllServices());
-    }
-
-    @GetMapping("/services/{serviceId}")
-    public ResponseEntity<ServiceItemDTO> getServiceById(@PathVariable Long serviceId) {
-        return ResponseEntity.ok(catalogService.getServiceById(serviceId));
+    public ResponseEntity<Map<String, Object>> getCategories() {
+        Map<String, Object> categories = catalogService.getCategories();
+        return ResponseEntity.ok(categories);
     }
 }

@@ -6,10 +6,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface CategoryRepository extends JpaRepository<Category, UUID> {
-    List<Category> findAllByIsActiveTrueOrderByDisplayOrderAsc();
-    Optional<Category> findByNameIgnoreCase(String name);
+public interface CategoryRepository extends JpaRepository<Category, String> {
+    Optional<Category> findByCode(String code);
+    List<Category> findByIsActiveTrueOrderByDisplayOrderAsc();
 }

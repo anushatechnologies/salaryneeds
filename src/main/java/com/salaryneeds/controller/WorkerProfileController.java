@@ -1,59 +1,37 @@
 package com.salaryneeds.controller;
 
-import com.salaryneeds.dto.LocationUpdateRequest;
-import com.salaryneeds.dto.UpdateAvailabilityRequest;
-import com.salaryneeds.dto.UpdateProfileRequest;
-import com.salaryneeds.dto.WorkerStatusResponse;
-import com.salaryneeds.service.WorkerService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import com.salaryneeds.dto.DutyUpdateRequest;
+import com.salaryneeds.dto.WorkerProfileDTO;
+import com.salaryneeds.security.WorkerContext;
+import com.salaryneeds.service.WorkerProfileService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.UUID;
-import java.time.LocalDateTime;
 
 @RestController
-@RequestMapping("/worker")
+@RequestMapping({"/worker/profile", "/v1/worker/profile"})
+@RequiredArgsConstructor
 public class WorkerProfileController {
 
-    @Autowired
-    private WorkerService workerService;
+    private final WorkerProfileService workerProfileService;
 
-    // TODO: In a real app, workerId comes from the JWT security context.
-    // For now, we will assume it's passed as a header or just use a dummy for testing.
-    private UUID getCurrentWorkerId() {
-        return UUID.fromString("00000000-0000-0000-0000-000000000000"); // Replace with actual extraction logic
+    @GetMapping("/me")
+    public ResponseEntity<WorkerProfileDTO> getMyProfile(
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
+        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
+        WorkerProfileDTO profile = workerProfileService.getProfile(workerId);
+        return ResponseEntity.ok(profile);
     }
 
-    @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(@RequestBody UpdateProfileRequest request, @RequestHeader("X-Worker-ID") UUID workerId) {
-        workerService.updateProfile(workerId, request);
-        return ResponseEntity.ok(Map.of("updated", true));
-    }
-
-    @GetMapping("/status")
-    public ResponseEntity<WorkerStatusResponse> getStatus(@RequestHeader("X-Worker-ID") UUID workerId) {
-        WorkerStatusResponse response = workerService.getStatus(workerId);
+    @PatchMapping("/duty")
+    public ResponseEntity<Map<String, Object>> updateDuty(
+            @RequestBody(required = false) DutyUpdateRequest request,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
+        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
+        Boolean requestedDuty = request != null ? request.getDutyOnline() : null;
+        Map<String, Object> response = workerProfileService.toggleDuty(workerId, requestedDuty);
         return ResponseEntity.ok(response);
-    }
-
-    @PatchMapping("/availability")
-    public ResponseEntity<?> updateAvailability(@RequestBody UpdateAvailabilityRequest request, @RequestHeader("X-Worker-ID") UUID workerId) {
-        // Implementation for setting online/offline status (would need an online field in WorkerProfile)
-        return ResponseEntity.ok(Map.of("online", request.getOnline()));
-    }
-
-    @PostMapping("/location")
-    public ResponseEntity<?> updateLocation(@RequestBody LocationUpdateRequest request, @RequestHeader("X-Worker-ID") UUID workerId) {
-        workerService.updateLocation(workerId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("recorded_at", LocalDateTime.now()));
-    }
-    
-    @GetMapping("/earnings")
-    public ResponseEntity<?> getEarnings(@RequestHeader("X-Worker-ID") UUID workerId) {
-        // Stub implementation
-        return ResponseEntity.ok(Map.of("total_earnings", 12500, "completed_jobs", 25));
     }
 }
