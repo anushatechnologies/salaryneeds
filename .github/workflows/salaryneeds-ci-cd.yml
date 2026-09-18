@@ -5,6 +5,10 @@ on:
     branches:
       - master
 
+concurrency:
+  group: production-deployment
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
 
@@ -78,14 +82,22 @@ jobs:
             echo "Starting SalaryNeeds..."
             sudo systemctl start salaryneeds
 
-            echo "Waiting for application..."
-            sleep 25
+            echo "Waiting for application to become healthy..."
+            HEALTHY=0
+            for i in {1..12}; do
+              if curl -s -f http://localhost:8080/actuator/health > /dev/null; then
+                echo "Application is healthy!"
+                curl http://localhost:8080/actuator/health
+                HEALTHY=1
+                break
+              fi
+              echo "Waiting for app to start... ($i/12)"
+              sleep 5
+            done
 
-            echo "Checking service..."
-            sudo systemctl status salaryneeds -l --no-pager
-
-            echo "Checking port 8080..."
-            sudo ss -lntp | grep 8080 || true
-
-            echo "Checking health..."
-            curl -f http://localhost:8080/actuator/health || (sudo journalctl -u salaryneeds.service -n 50 --no-pager && exit 1)
+            if [ $HEALTHY -eq 0 ]; then
+              echo "Health check failed! Service status and recent logs:"
+              sudo systemctl status salaryneeds -l --no-pager || true
+              sudo journalctl -u salaryneeds.service -n 50 --no-pager || true
+              exit 1
+            fi
