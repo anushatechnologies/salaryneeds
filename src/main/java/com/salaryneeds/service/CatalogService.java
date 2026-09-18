@@ -10,6 +10,8 @@ public interface CatalogService {
 
     List<CategoryDTO> getAllCategories();
 
+    CategoryDTO getCategoryById(UUID categoryId);
+
     List<ServiceItemDTO> getServicesByCategory(UUID categoryId);
 
     List<ServiceItemDTO> getAllServices();
