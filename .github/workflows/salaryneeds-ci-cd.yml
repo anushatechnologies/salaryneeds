@@ -28,7 +28,7 @@ jobs:
       - name: Build application
         run: mvn clean package -DskipTests
 
-      # 4. Stop application and remove old JAR
+      # 4. Stop application and prepare EC2 directory
       - name: Prepare EC2
         uses: appleboy/ssh-action@v1
         with:
@@ -39,11 +39,14 @@ jobs:
             echo "Stopping SalaryNeeds..."
             sudo systemctl stop salaryneeds || true
 
+            echo "Ensuring directory exists with proper permissions..."
+            sudo mkdir -p /opt/salaryneeds
+            sudo chown -R ec2-user:ec2-user /opt/salaryneeds
+            sudo chmod 755 /opt/salaryneeds
+
             echo "Removing old JAR..."
             sudo rm -f /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
-
-            echo "Checking directory..."
-            ls -lh /opt/salaryneeds
+            sudo rm -rf /opt/salaryneeds/target
 
       # 5. Copy new JAR directly to EC2
       - name: Copy JAR to EC2
@@ -54,6 +57,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "target/salaryneeds-0.0.1-SNAPSHOT.jar"
           target: "/opt/salaryneeds"
+          strip_components: 1
           overwrite: true
 
       # 6. Start application and verify health
@@ -69,18 +73,19 @@ jobs:
 
             echo "Setting ownership..."
             sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+            sudo chmod 755 /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
             echo "Starting SalaryNeeds..."
             sudo systemctl start salaryneeds
 
             echo "Waiting for application..."
-            sleep 20
+            sleep 25
 
             echo "Checking service..."
             sudo systemctl status salaryneeds -l --no-pager
 
             echo "Checking port 8080..."
-            sudo ss -lntp | grep 8080
+            sudo ss -lntp | grep 8080 || true
 
             echo "Checking health..."
-            curl -f http://localhost:8080/actuator/health
+            curl -f http://localhost:8080/actuator/health || (sudo journalctl -u salaryneeds.service -n 50 --no-pager && exit 1)
