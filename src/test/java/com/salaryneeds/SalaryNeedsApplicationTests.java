@@ -644,4 +644,74 @@ class SalaryNeedsApplicationTests {
                 .andExpect(jsonPath("$.status", is("REJECTED")))
                 .andExpect(jsonPath("$.reviewed_at", notNullValue()));
     }
+
+    // =========================================================================
+    // 7. CUSTOMER, WORKER & ADMIN REVIEW OPERATIONS
+    // =========================================================================
+    @Test
+    @DisplayName("Review Operations: Submit, Worker Summary, Worker List, Admin List, Admin Summary, Delete Review")
+    void testCustomerAndAdminReviewOperations() throws Exception {
+        String testWorkerId = "w-rev-test-" + System.currentTimeMillis();
+
+        // 1. Submit a Customer Review (POST /api/customer/reviews)
+        String reviewPayload = "{"
+                + "\"worker_id\":\"" + testWorkerId + "\","
+                + "\"booking_id\":\"SNB-TEST-99\","
+                + "\"customer_name\":\"Aarav Mehta\","
+                + "\"service_title\":\"AC Filter Cleaning\","
+                + "\"rating\":5.0,"
+                + "\"comment\":\"Outstanding and quick service!\""
+                + "}";
+
+        MvcResult submitResult = mockMvc.perform(post("/api/customer/reviews")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reviewPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.review.id", notNullValue()))
+                .andExpect(jsonPath("$.review.rating", is(5.0)))
+                .andReturn();
+
+        String reviewId = objectMapper.readTree(submitResult.getResponse().getContentAsString()).path("review").path("id").asText();
+
+        // 2. Get Worker Rating Summary (GET /api/workers/{workerId}/reviews/summary)
+        mockMvc.perform(get("/api/workers/" + testWorkerId + "/reviews/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.total_reviews", is(1)))
+                .andExpect(jsonPath("$.average_rating", is(5.0)));
+
+        // 3. Get Worker Reviews List (GET /api/workers/{workerId}/reviews)
+        mockMvc.perform(get("/api/workers/" + testWorkerId + "/reviews"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.reviews", hasSize(1)))
+                .andExpect(jsonPath("$.reviews[0].id", is(reviewId)))
+                .andExpect(jsonPath("$.reviews[0].customer_name", is("Aarav Mehta")));
+
+        // 4. Admin List Reviews for Worker (GET /admin/workers/{workerId}/reviews)
+        mockMvc.perform(get("/admin/workers/" + testWorkerId + "/reviews"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.reviews", hasSize(1)))
+                .andExpect(jsonPath("$.reviews[0].id", is(reviewId)));
+
+        // 5. Admin Rating Card Summary (GET /admin/workers/{workerId}/reviews/summary)
+        mockMvc.perform(get("/admin/workers/" + testWorkerId + "/reviews/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.total_reviews", is(1)))
+                .andExpect(jsonPath("$.average_rating", is(5.0)));
+
+        // 6. Delete Review by Admin (DELETE /admin/reviews/{id})
+        mockMvc.perform(delete("/admin/reviews/" + reviewId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.deleted_id", is(reviewId)));
+
+        // Edge Case: Delete non-existent review -> 404 REVIEW_NOT_FOUND
+        mockMvc.perform(delete("/admin/reviews/non-existent-rev-999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", is("REVIEW_NOT_FOUND")));
+    }
 }
