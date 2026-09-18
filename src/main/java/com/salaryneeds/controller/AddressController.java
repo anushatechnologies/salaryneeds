@@ -20,6 +20,15 @@ public class AddressController {
 
     private final AddressService addressService;
 
+    @RestController
+public class HomeController {
+
+    @GetMapping("/")
+    public String home() {
+        return "SalaryNeeds API is running";
+    }
+}
+
     @PostMapping
     public ResponseEntity<AddressResponseDTO> createAddress(
             @PathVariable UUID customerId,
