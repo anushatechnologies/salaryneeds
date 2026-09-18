@@ -17,12 +17,12 @@ public class DutyLocationController {
 
     private final DutyLocationService dutyLocationService;
 
-    @PutMapping("/duty/toggle")
+    @RequestMapping(value = {"/duty/toggle", "/duty"}, method = {RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.POST})
     public ResponseEntity<Map<String, Object>> toggleDuty(
             @RequestBody(required = false) DutyUpdateRequest request,
             @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
         String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
-        Boolean requestedDuty = request != null ? request.getDutyOnline() : null;
+        Boolean requestedDuty = request != null ? request.isOnline() : true;
         Map<String, Object> response = dutyLocationService.toggleDuty(workerId, requestedDuty);
         return ResponseEntity.ok(response);
     }

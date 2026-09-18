@@ -20,7 +20,7 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    @GetMapping("/nearby-leads")
+    @GetMapping({"/radar", "/nearby-leads"})
     public ResponseEntity<Map<String, Object>> getNearbyLeads(
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,

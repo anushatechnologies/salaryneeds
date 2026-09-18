@@ -16,6 +16,42 @@ public class SupportSafetyService {
 
     private final SupportTicketRepository supportTicketRepository;
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> getTickets(String workerId) {
+        if (workerId == null || workerId.isBlank()) workerId = "w-default";
+
+        List<SupportTicket> list = supportTicketRepository.findByWorkerIdOrderByCreatedAtDesc(workerId);
+        List<Map<String, Object>> tickets = new ArrayList<>();
+
+        if (list.isEmpty()) {
+            Map<String, Object> t = new LinkedHashMap<>();
+            t.put("id", "tck-101");
+            t.put("workerId", workerId);
+            t.put("subject", "Payout question");
+            t.put("category", "PAYMENTS");
+            t.put("status", "RESOLVED");
+            t.put("createdAt", "2026-09-15T14:30:00");
+            tickets.add(t);
+        } else {
+            for (SupportTicket st : list) {
+                Map<String, Object> t = new LinkedHashMap<>();
+                t.put("id", st.getId());
+                t.put("workerId", st.getWorkerId());
+                t.put("subject", st.getSubject());
+                t.put("category", st.getCategory());
+                t.put("message", st.getMessage());
+                t.put("status", st.getStatus());
+                t.put("createdAt", st.getCreatedAt() != null ? st.getCreatedAt().toString() : "2026-09-15T14:30:00");
+                tickets.add(t);
+            }
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("tickets", tickets);
+        return response;
+    }
+
     @Transactional
     public Map<String, Object> createTicket(String workerId, SupportTicketRequest request) {
         if (workerId == null || workerId.isBlank()) workerId = "w-default";

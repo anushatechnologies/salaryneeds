@@ -17,6 +17,14 @@ public class SupportSafetyController {
 
     private final SupportSafetyService supportSafetyService;
 
+    @GetMapping("/support/tickets")
+    public ResponseEntity<Map<String, Object>> getTickets(
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
+        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
+        Map<String, Object> response = supportSafetyService.getTickets(workerId);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/support/tickets")
     public ResponseEntity<Map<String, Object>> createTicket(
             @RequestBody SupportTicketRequest request,

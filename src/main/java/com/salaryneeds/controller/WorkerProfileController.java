@@ -25,12 +25,12 @@ public class WorkerProfileController {
         return ResponseEntity.ok(profile);
     }
 
-    @PatchMapping("/duty")
+    @RequestMapping(value = "/duty", method = {RequestMethod.PATCH, RequestMethod.PUT})
     public ResponseEntity<Map<String, Object>> updateDuty(
             @RequestBody(required = false) DutyUpdateRequest request,
             @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
         String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
-        Boolean requestedDuty = request != null ? request.getDutyOnline() : null;
+        Boolean requestedDuty = request != null ? request.isOnline() : true;
         Map<String, Object> response = workerProfileService.toggleDuty(workerId, requestedDuty);
         return ResponseEntity.ok(response);
     }
