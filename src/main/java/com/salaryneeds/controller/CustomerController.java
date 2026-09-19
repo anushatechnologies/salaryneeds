@@ -1,6 +1,8 @@
 package com.salaryneeds.controller;
 
 import com.salaryneeds.dto.CustomerCreateRequestDTO;
+import com.salaryneeds.dto.CustomerLoginRequestDTO;
+import com.salaryneeds.dto.CustomerLoginResponseDTO;
 import com.salaryneeds.dto.CustomerResponseDTO;
 import com.salaryneeds.dto.CustomerUpdateRequestDTO;
 import com.salaryneeds.dto.PageResponseDTO;
@@ -26,6 +28,11 @@ public class CustomerController {
     @PostMapping
     public ResponseEntity<CustomerResponseDTO> createCustomer(@Valid @RequestBody CustomerCreateRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(customerService.createCustomer(request));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<CustomerLoginResponseDTO> login(@Valid @RequestBody CustomerLoginRequestDTO request) {
+        return ResponseEntity.ok(customerService.login(request));
     }
 
     @GetMapping

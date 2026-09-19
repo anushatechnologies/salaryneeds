@@ -1,6 +1,8 @@
 package com.salaryneeds.service;
 
 import com.salaryneeds.dto.CustomerCreateRequestDTO;
+import com.salaryneeds.dto.CustomerLoginRequestDTO;
+import com.salaryneeds.dto.CustomerLoginResponseDTO;
 import com.salaryneeds.dto.CustomerResponseDTO;
 import com.salaryneeds.dto.CustomerUpdateRequestDTO;
 import com.salaryneeds.dto.PageResponseDTO;
@@ -24,4 +26,7 @@ public interface CustomerService {
     void deactivateCustomer(UUID customerId);
 
     void deleteCustomer(UUID customerId);
+
+    CustomerLoginResponseDTO login(CustomerLoginRequestDTO request);
 }
+
