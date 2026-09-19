@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - main
 
 jobs:
   build-and-deploy:
@@ -39,8 +40,13 @@ jobs:
             echo "Stopping SalaryNeeds..."
             sudo systemctl stop salaryneeds || true
 
+            echo "Ensuring directory exists and setting permissions..."
+            sudo mkdir -p /opt/salaryneeds
+            sudo chown -R ec2-user:ec2-user /opt/salaryneeds
+
             echo "Removing old JAR..."
             sudo rm -f /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+            sudo rm -rf /opt/salaryneeds/target
 
             echo "Checking directory..."
             ls -lh /opt/salaryneeds
@@ -54,6 +60,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "target/salaryneeds-0.0.1-SNAPSHOT.jar"
           target: "/opt/salaryneeds"
+          strip_components: 1
           overwrite: true
 
       # 6. Start application and verify health
@@ -64,11 +71,17 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Fallback in case scp placed the jar inside a target/ subfolder
+            if [ -f "/opt/salaryneeds/target/salaryneeds-0.0.1-SNAPSHOT.jar" ]; then
+              sudo mv /opt/salaryneeds/target/salaryneeds-0.0.1-SNAPSHOT.jar /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+            fi
+
             echo "Checking deployed JAR..."
             ls -lh /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
             echo "Setting ownership..."
             sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+            sudo chmod 755 /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
             echo "Starting SalaryNeeds..."
             sudo systemctl start salaryneeds
