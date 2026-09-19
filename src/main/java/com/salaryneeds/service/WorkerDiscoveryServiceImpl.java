@@ -33,14 +33,28 @@ public class WorkerDiscoveryServiceImpl implements WorkerDiscoveryService {
             Boolean dutyOnline,
             Pageable pageable
     ) {
-        Page<WorkerProfile> page = workerProfileRepository.searchWorkers(
-                categoryId,
-                service,
-                pincode,
-                minRating,
-                dutyOnline,
-                pageable
-        );
+        org.springframework.data.jpa.domain.Specification<WorkerProfile> spec = (root, query, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (categoryId != null) {
+                predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+            }
+            if (service != null && !service.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("service")), "%" + service.trim().toLowerCase() + "%"));
+            }
+            if (pincode != null && !pincode.isBlank()) {
+                predicates.add(cb.equal(root.get("pincode"), pincode.trim()));
+            }
+            if (minRating != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("ratingAvg"), minRating));
+            }
+            if (dutyOnline != null) {
+                predicates.add(cb.equal(root.get("dutyOnline"), dutyOnline));
+            }
+            predicates.add(cb.equal(root.get("accountStatus"), com.salaryneeds.entity.enums.AccountStatus.ACTIVE));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        Page<WorkerProfile> page = workerProfileRepository.findAll(spec, pageable);
 
         List<WorkerProfileDTO> content = page.getContent().stream()
                 .map(this::mapToDTO)

@@ -46,6 +46,11 @@ public class CustomerController {
         return ResponseEntity.ok(customerService.getCustomerById(customerId));
     }
 
+    @GetMapping("/by-phone")
+    public ResponseEntity<CustomerResponseDTO> getCustomerByPhone(@RequestParam String phone) {
+        return ResponseEntity.ok(customerService.getCustomerByPhone(phone));
+    }
+
     @PutMapping("/{customerId}")
     public ResponseEntity<CustomerResponseDTO> updateCustomer(
             @PathVariable UUID customerId,

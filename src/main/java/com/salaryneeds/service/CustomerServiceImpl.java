@@ -65,6 +65,14 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @Transactional(readOnly = true)
+    public CustomerResponseDTO getCustomerByPhone(String phone) {
+        Customer customer = customerRepository.findByPhone(phone)
+                .orElseThrow(() -> new CustomerNotFoundException("Customer not found with phone: " + phone));
+        return mapToResponseDTO(customer);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<CustomerResponseDTO> getAllCustomers() {
         return customerRepository.findAll()
                 .stream()

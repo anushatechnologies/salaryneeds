@@ -15,6 +15,8 @@ public interface CustomerService {
 
     CustomerResponseDTO getCustomerById(UUID customerId);
 
+    CustomerResponseDTO getCustomerByPhone(String phone);
+
     List<CustomerResponseDTO> getAllCustomers();
 
     PageResponseDTO<CustomerResponseDTO> getCustomersPaginated(Pageable pageable);
