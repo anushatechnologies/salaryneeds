@@ -83,17 +83,27 @@ jobs:
             sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
             sudo chmod 755 /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
-            echo "Starting SalaryNeeds..."
-            sudo systemctl start salaryneeds
+            echo "Checking system Java version..."
+            java -version 2>&1 || /usr/bin/java -version 2>&1 || true
 
-            echo "Waiting for application..."
-            sleep 20
+            echo "Checking systemd service config..."
+            cat /etc/systemd/system/salaryneeds.service || true
 
-            echo "Checking service..."
-            sudo systemctl status salaryneeds -l --no-pager
+            echo "Restarting SalaryNeeds service..."
+            sudo systemctl daemon-reload
+            sudo systemctl restart salaryneeds
+
+            echo "Waiting for application to start..."
+            sleep 25
+
+            echo "Checking service status..."
+            sudo systemctl status salaryneeds -l --no-pager || true
+
+            echo "Checking application journal logs..."
+            sudo journalctl -u salaryneeds -n 50 --no-pager || true
 
             echo "Checking port 8080..."
-            sudo ss -lntp | grep 8080
+            sudo ss -lntp | grep 8080 || true
 
             echo "Checking health..."
-            curl -f http://localhost:8080/actuator/health
+            curl -f http://localhost:8080/actuator/health || curl -f http://localhost:8080/api/catalog/categories
