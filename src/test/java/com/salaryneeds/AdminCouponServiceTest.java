@@ -3,7 +3,6 @@ package com.salaryneeds;
 import com.salaryneeds.dto.PageResponseDTO;
 import com.salaryneeds.dto.admin.CouponCreateRequestDTO;
 import com.salaryneeds.dto.admin.CouponResponseDTO;
-import com.salaryneeds.dto.admin.CouponUpdateRequestDTO;
 import com.salaryneeds.entity.Coupon;
 import com.salaryneeds.entity.enums.DiscountType;
 import com.salaryneeds.repository.CouponRepository;
@@ -19,7 +18,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;

@@ -2,6 +2,7 @@ package com.salaryneeds.config;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -18,9 +19,9 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
     private static final UUID DEFAULT_ADMIN_ID = UUID.fromString("a0000000-0000-0000-0000-000000000001");
 
     @Override
-    public boolean preHandle(HttpServletRequest  request,
-                             HttpServletResponse response,
-                             Object              handler) {
+    public boolean preHandle(@NonNull HttpServletRequest request,
+                             @NonNull HttpServletResponse response,
+                             @NonNull Object handler) {
         // Allow all requests through without authentication
         request.setAttribute("adminId", DEFAULT_ADMIN_ID);
         return true;

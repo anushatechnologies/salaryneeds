@@ -2,7 +2,6 @@ package com.salaryneeds.controller.admin;
 
 import com.salaryneeds.dto.BookingResponseDTO;
 import com.salaryneeds.dto.PageResponseDTO;
-import com.salaryneeds.dto.admin.PaymentSummaryDTO;
 import com.salaryneeds.service.admin.AdminBookingService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;

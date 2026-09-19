@@ -4,7 +4,6 @@ import com.salaryneeds.dto.CategoryDTO;
 import com.salaryneeds.dto.ServiceItemDTO;
 import com.salaryneeds.entity.Category;
 import com.salaryneeds.entity.ServiceItem;
-import com.salaryneeds.exception.CategoryNotFoundException;
 import com.salaryneeds.exception.ServiceNotFoundException;
 import com.salaryneeds.repository.CategoryRepository;
 import com.salaryneeds.repository.ServiceItemRepository;

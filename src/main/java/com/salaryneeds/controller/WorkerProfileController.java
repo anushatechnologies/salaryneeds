@@ -21,11 +21,6 @@ public class WorkerProfileController {
     @Autowired
     private WorkerService workerService;
 
-    // TODO: In a real app, workerId comes from the JWT security context.
-    // For now, we will assume it's passed as a header or just use a dummy for testing.
-    private UUID getCurrentWorkerId() {
-        return UUID.fromString("00000000-0000-0000-0000-000000000000"); // Replace with actual extraction logic
-    }
 
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(@RequestBody UpdateProfileRequest request, @RequestHeader("X-Worker-ID") UUID workerId) {

@@ -3,7 +3,6 @@ package com.salaryneeds.service;
 import com.salaryneeds.dto.*;
 import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Booking;
-import com.salaryneeds.entity.Customer;
 import com.salaryneeds.entity.ServiceItem;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.entity.enums.BookingStatusTab;
