@@ -41,14 +41,14 @@ public class CustomerController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{customerId}")
-    public ResponseEntity<CustomerResponseDTO> getCustomerById(@PathVariable UUID customerId) {
-        return ResponseEntity.ok(customerService.getCustomerById(customerId));
-    }
-
     @GetMapping("/by-phone")
     public ResponseEntity<CustomerResponseDTO> getCustomerByPhone(@RequestParam String phone) {
         return ResponseEntity.ok(customerService.getCustomerByPhone(phone));
+    }
+
+    @GetMapping("/{customerId}")
+    public ResponseEntity<CustomerResponseDTO> getCustomerById(@PathVariable UUID customerId) {
+        return ResponseEntity.ok(customerService.getCustomerById(customerId));
     }
 
     @PutMapping("/{customerId}")
