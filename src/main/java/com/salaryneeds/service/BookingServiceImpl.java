@@ -335,6 +335,10 @@ public class BookingServiceImpl implements BookingService {
         booking.setRefundAmount(refundAmount);
         booking.setCancelledAt(LocalDateTime.now());
 
+        try {
+            couponService.reverseCouponRedemption(bookingId);
+        } catch (Exception ignored) {}
+
         bookingRepository.save(booking);
 
         return CancelBookingResponseDTO.builder()

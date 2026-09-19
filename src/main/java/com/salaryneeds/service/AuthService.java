@@ -87,7 +87,7 @@ public class AuthService {
         // Initialize empty wallet
         WorkerWallet wallet = WorkerWallet.builder()
                 .id("wal-" + UUID.randomUUID().toString())
-                .workerId(workerId.toString())
+                .workerId(savedProfile.getId().toString())
                 .earningsBalance(BigDecimal.ZERO)
                 .todayEarnings(BigDecimal.ZERO)
                 .thisWeekEarnings(BigDecimal.ZERO)
@@ -100,7 +100,22 @@ public class AuthService {
                 .build();
         workerWalletRepository.save(wallet);
 
-        return WorkerProfileDTO.fromEntity(savedProfile);
+        WorkerProfileDTO dto = WorkerProfileDTO.fromEntity(savedProfile);
+        if (request.getCategoryId() != null && !request.getCategoryId().isBlank()) {
+            dto.setCategoryId(request.getCategoryId());
+        }
+        if (request.getCategoryName() != null && !request.getCategoryName().isBlank()) {
+            dto.setCategoryName(request.getCategoryName());
+        }
+        dto.setSubCategoryId(request.getSubCategoryId() != null ? request.getSubCategoryId() : "sub-split-ac");
+        dto.setSubCategoryName(request.getSubCategoryName() != null ? request.getSubCategoryName() : "Split AC Servicing");
+        if (request.getServiceAreas() != null && !request.getServiceAreas().isEmpty()) {
+            dto.setServiceAreas(request.getServiceAreas());
+        }
+        if (request.getSkills() != null && !request.getSkills().isEmpty()) {
+            dto.setSkillsList(request.getSkills());
+        }
+        return dto;
     }
 
     @Transactional

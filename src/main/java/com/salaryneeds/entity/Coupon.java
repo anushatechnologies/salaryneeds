@@ -57,6 +57,10 @@ public class Coupon {
     @Builder.Default
     private Integer usageLimit = 1000;
 
+    @Column(name = "usage_limit_per_user")
+    @Builder.Default
+    private Integer usageLimitPerUser = 1;
+
     @Column(name = "used_count")
     @Builder.Default
     private Integer usedCount = 0;
@@ -72,6 +76,30 @@ public class Coupon {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public BigDecimal getMinBookingValue() {
+        return minOrderAmount;
+    }
+
+    public void setMinBookingValue(BigDecimal minBookingValue) {
+        this.minOrderAmount = minBookingValue;
+    }
+
+    public BigDecimal getMaxDiscount() {
+        return maxDiscountAmount;
+    }
+
+    public void setMaxDiscount(BigDecimal maxDiscount) {
+        this.maxDiscountAmount = maxDiscount;
+    }
+
+    public Boolean getActive() {
+        return isActive;
+    }
+
+    public void setActive(Boolean active) {
+        this.isActive = active;
+    }
 
     public boolean isCurrentlyValid() {
         if (!Boolean.TRUE.equals(isActive)) {
@@ -106,9 +134,10 @@ public class Coupon {
             }
         } else {
             discount = discountValue;
-            if (discount.compareTo(orderAmount) > 0) {
-                discount = orderAmount;
-            }
+        }
+
+        if (discount.compareTo(orderAmount) > 0) {
+            discount = orderAmount;
         }
         return discount;
     }

@@ -617,14 +617,14 @@ class SalaryNeedsApplicationTests {
     @DisplayName("Admin Document Management: List, View, Approve, Reject")
     void testAdminAndWorkerEndpoints() throws Exception {
         // 1. List Worker Documents (GET /admin/workers/documents)
-        mockMvc.perform(get("/admin/workers/documents"))
+        mockMvc.perform(get("/admin/workers/documents").header("X-Role", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))))
                 .andExpect(jsonPath("$[0].document_type", is("AADHAAR_CARD")))
                 .andExpect(jsonPath("$[0].document_url", notNullValue()));
 
         // 2. Get Document by ID (GET /admin/workers/documents/1)
-        mockMvc.perform(get("/admin/workers/documents/1"))
+        mockMvc.perform(get("/admin/workers/documents/1").header("X-Role", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.worker_id", is(1)))
@@ -632,14 +632,14 @@ class SalaryNeedsApplicationTests {
                 .andExpect(jsonPath("$.document_url", notNullValue()));
 
         // 3. Approve Document (POST /admin/workers/documents/1/approve)
-        mockMvc.perform(post("/admin/workers/documents/1/approve"))
+        mockMvc.perform(post("/admin/workers/documents/1/approve").header("X-Role", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.status", is("APPROVED")))
                 .andExpect(jsonPath("$.reviewed_at", notNullValue()));
 
         // 4. Reject Document (POST /admin/workers/documents/1/reject)
-        mockMvc.perform(post("/admin/workers/documents/1/reject"))
+        mockMvc.perform(post("/admin/workers/documents/1/reject").header("X-Role", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.status", is("REJECTED")))
@@ -691,27 +691,27 @@ class SalaryNeedsApplicationTests {
                 .andExpect(jsonPath("$.reviews[0].customer_name", is("Aarav Mehta")));
 
         // 4. Admin List Reviews for Worker (GET /admin/workers/{workerId}/reviews)
-        mockMvc.perform(get("/admin/workers/" + testWorkerId + "/reviews"))
+        mockMvc.perform(get("/admin/workers/" + testWorkerId + "/reviews").header("X-Role", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.reviews", hasSize(1)))
                 .andExpect(jsonPath("$.reviews[0].id", is(reviewId)));
 
         // 5. Admin Rating Card Summary (GET /admin/workers/{workerId}/reviews/summary)
-        mockMvc.perform(get("/admin/workers/" + testWorkerId + "/reviews/summary"))
+        mockMvc.perform(get("/admin/workers/" + testWorkerId + "/reviews/summary").header("X-Role", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.total_reviews", is(1)))
                 .andExpect(jsonPath("$.average_rating", is(5.0)));
 
         // 6. Delete Review by Admin (DELETE /admin/reviews/{id})
-        mockMvc.perform(delete("/admin/reviews/" + reviewId))
+        mockMvc.perform(delete("/admin/reviews/" + reviewId).header("X-Role", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.deleted_id", is(reviewId)));
 
         // Edge Case: Delete non-existent review -> 404 REVIEW_NOT_FOUND
-        mockMvc.perform(delete("/admin/reviews/non-existent-rev-999"))
+        mockMvc.perform(delete("/admin/reviews/non-existent-rev-999").header("X-Role", "ADMIN"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error", is("REVIEW_NOT_FOUND")));
     }

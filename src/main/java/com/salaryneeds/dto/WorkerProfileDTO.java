@@ -25,13 +25,23 @@ public class WorkerProfileDTO {
     private String phone;
 
     @com.fasterxml.jackson.annotation.JsonAlias({"category_id", "categoryId"})
-    private UUID categoryId;
+    private String categoryId;
 
     @com.fasterxml.jackson.annotation.JsonAlias({"category_name", "categoryName"})
     private String categoryName;
 
+    @JsonProperty("sub_category_id")
+    @com.fasterxml.jackson.annotation.JsonAlias({"sub_category_id", "subCategoryId"})
+    private String subCategoryId;
+
+    @JsonProperty("sub_category_name")
+    @com.fasterxml.jackson.annotation.JsonAlias({"sub_category_name", "subCategoryName"})
+    private String subCategoryName;
+
     private String service;
     private String trade;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String skills;
 
     @com.fasterxml.jackson.annotation.JsonAlias({"skills_list", "skillsList"})
@@ -85,6 +95,31 @@ public class WorkerProfileDTO {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private LocalDateTime createdAt;
 
+    @JsonProperty("skills")
+    public List<String> getSkills() {
+        if (skillsList != null && !skillsList.isEmpty()) {
+            return skillsList;
+        }
+        if (skills != null && !skills.isBlank()) {
+            return java.util.Arrays.asList(skills.split("\\s*,\\s*"));
+        }
+        return java.util.Collections.emptyList();
+    }
+
+    public String getSkillsRaw() {
+        return skills;
+    }
+
+    @JsonProperty("sub_category_id")
+    public String getSub_category_id() {
+        return subCategoryId;
+    }
+
+    @JsonProperty("sub_category_name")
+    public String getSub_category_name() {
+        return subCategoryName;
+    }
+
     @JsonProperty("rating_avg")
     public BigDecimal getRating_avg() {
         return ratingAvg;
@@ -101,8 +136,65 @@ public class WorkerProfileDTO {
     }
 
     @JsonProperty("category_id")
-    public UUID getCategory_id() {
+    public String getCategory_id() {
         return categoryId;
+    }
+
+    @JsonProperty("category_name")
+    public String getCategory_name() {
+        return categoryName;
+    }
+
+    @JsonProperty("experience_years")
+    public Integer getExperience_years() {
+        return experienceYears;
+    }
+
+    @JsonProperty("service_areas")
+    public List<String> getService_areas() {
+        return serviceAreas;
+    }
+
+    @JsonProperty("account_status")
+    public String getAccount_status() {
+        return accountStatus;
+    }
+
+    @JsonProperty("created_at")
+    public LocalDateTime getCreated_at() {
+        return createdAt;
+    }
+
+    public static class WorkerProfileDTOBuilder {
+        private String categoryId;
+        private String skills;
+        private List<String> skillsList;
+
+        public WorkerProfileDTOBuilder categoryId(UUID categoryId) {
+            this.categoryId = categoryId != null ? categoryId.toString() : null;
+            return this;
+        }
+
+        public WorkerProfileDTOBuilder categoryId(String categoryId) {
+            this.categoryId = categoryId;
+            return this;
+        }
+
+        public WorkerProfileDTOBuilder skills(String skills) {
+            this.skills = skills;
+            if (skills != null && !skills.isBlank()) {
+                this.skillsList = java.util.Arrays.asList(skills.split("\\s*,\\s*"));
+            }
+            return this;
+        }
+
+        public WorkerProfileDTOBuilder skills(List<String> skills) {
+            this.skillsList = skills;
+            if (skills != null) {
+                this.skills = String.join(", ", skills);
+            }
+            return this;
+        }
     }
 
     public static WorkerProfileDTO fromEntity(WorkerProfile p) {
@@ -112,7 +204,7 @@ public class WorkerProfileDTO {
                 .name(p.getName())
                 .email(p.getEmail())
                 .phone(p.getPhone())
-                .categoryId(p.getCategoryId())
+                .categoryId(p.getCategoryId() != null ? p.getCategoryId().toString() : null)
                 .categoryName(p.getCategoryName())
                 .service(p.getService())
                 .trade(p.getTrade())

@@ -15,9 +15,11 @@ import lombok.NoArgsConstructor;
 public class LocationPingRequest {
 
     @NotNull(message = "Latitude is required")
+    @JsonAlias({"lat", "latitude"})
     private Double lat;
 
     @NotNull(message = "Longitude is required")
+    @JsonAlias({"lng", "longitude"})
     private Double lng;
 
     private Double speed;
