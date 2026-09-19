@@ -858,6 +858,72 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     }
 
     // ==========================================
+    // 5. USER & WORKER ACTIVE CATALOG RETRIEVAL
+    // ==========================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryResponseDTO> getActiveCategories() {
+        List<Category> categories = categoryRepository.findByIsActiveOrderByDisplayOrderAscNameAsc(true);
+        return categories.stream()
+                .map(c -> mapToCategoryResponseDTO(c, false))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SubCategoryResponseDTO> getActiveSubCategoriesByCategory(UUID categoryId) {
+        if (categoryId == null) {
+            throw new InvalidCatalogDataException("Category ID must not be null");
+        }
+
+        categoryRepository.findByIdAndIsActiveTrue(categoryId)
+                .orElseThrow(() -> new CategoryNotFoundException("Active Category not found with ID: " + categoryId));
+
+        List<ServiceItem> items = serviceItemRepository.findByCategoryIdAndStatus(categoryId, true);
+        return items.stream()
+                .map(this::mapToSubCategoryResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SubCategoryResponseDTO getActiveSubCategoryById(Long subCategoryId) {
+        if (subCategoryId == null || subCategoryId <= 0) {
+            throw new InvalidCatalogDataException("Sub-Category ID must be a valid positive number");
+        }
+
+        ServiceItem item = serviceItemRepository.findByIdAndIsActiveTrue(subCategoryId)
+                .orElseThrow(() -> new SubCategoryNotFoundException("Active Sub-Category not found with ID: " + subCategoryId));
+
+        if (item.getCategory() == null || !Boolean.TRUE.equals(item.getCategory().getIsActive())) {
+            throw new SubCategoryNotFoundException("Active parent Category not found for Sub-Category ID: " + subCategoryId);
+        }
+
+        return mapToSubCategoryResponseDTO(item);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VariantResponseDTO> getActiveVariantsBySubCategory(Long subCategoryId) {
+        if (subCategoryId == null || subCategoryId <= 0) {
+            throw new InvalidCatalogDataException("Sub-Category ID must be a valid positive number");
+        }
+
+        ServiceItem item = serviceItemRepository.findByIdAndIsActiveTrue(subCategoryId)
+                .orElseThrow(() -> new SubCategoryNotFoundException("Active Sub-Category not found with ID: " + subCategoryId));
+
+        if (item.getCategory() == null || !Boolean.TRUE.equals(item.getCategory().getIsActive())) {
+            throw new SubCategoryNotFoundException("Active parent Category not found for Sub-Category ID: " + subCategoryId);
+        }
+
+        List<Variant> variants = variantRepository.findBySubcategoryIdAndStatus(subCategoryId, true);
+        return variants.stream()
+                .map(this::mapToVariantResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    // ==========================================
     // HELPER METHODS
     // ==========================================
 

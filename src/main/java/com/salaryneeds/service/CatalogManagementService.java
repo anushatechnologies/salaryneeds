@@ -68,4 +68,13 @@ public interface CatalogManagementService {
     VariantResponseDTO updateVariantStatus(Long variantId, String status);
 
     void deleteVariant(Long variantId);
+
+    // --- 5. User & Worker Active Catalog Operations ---
+    List<CategoryResponseDTO> getActiveCategories();
+
+    List<SubCategoryResponseDTO> getActiveSubCategoriesByCategory(UUID categoryId);
+
+    SubCategoryResponseDTO getActiveSubCategoryById(Long subCategoryId);
+
+    List<VariantResponseDTO> getActiveVariantsBySubCategory(Long subCategoryId);
 }
