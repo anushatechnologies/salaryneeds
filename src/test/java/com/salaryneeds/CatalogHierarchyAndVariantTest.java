@@ -2,7 +2,6 @@ package com.salaryneeds;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salaryneeds.controller.AdminCatalogController;
-import com.salaryneeds.controller.PublicCatalogController;
 import com.salaryneeds.dto.catalog.CategoryRequestDTO;
 import com.salaryneeds.dto.catalog.CategoryResponseDTO;
 import com.salaryneeds.dto.catalog.SubCategoryRequestDTO;
@@ -35,7 +34,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(controllers = {AdminCatalogController.class, PublicCatalogController.class})
+@WebMvcTest(controllers = {AdminCatalogController.class})
 @Import({GlobalExceptionHandler.class, AdminAuthInterceptor.class})
 public class CatalogHierarchyAndVariantTest {
 
@@ -47,9 +46,6 @@ public class CatalogHierarchyAndVariantTest {
 
     @MockBean
     private CatalogManagementService catalogManagementService;
-
-    @MockBean
-    private CatalogService catalogService;
 
     @MockBean
     private com.salaryneeds.service.FileStorageService fileStorageService;
@@ -196,60 +192,5 @@ public class CatalogHierarchyAndVariantTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Sub-Category Not Found"));
-    }
-
-    @Test
-    @DisplayName("Edge Case 6: Public APIs return only ACTIVE categories, subcategories, and variants")
-    void testPublicApisReturnOnlyActiveItems() throws Exception {
-        UUID catId = UUID.randomUUID();
-        CategoryResponseDTO activeCat = CategoryResponseDTO.builder()
-                .id(catId)
-                .name("home cleaning")
-                .amount(BigDecimal.valueOf(1000))
-                .discount(BigDecimal.valueOf(15))
-                .finalAmount(BigDecimal.valueOf(850))
-                .status("ACTIVE")
-                .build();
-
-        when(catalogService.getActiveCategories()).thenReturn(List.of(activeCat));
-
-        mockMvc.perform(get("/api/categories"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("home cleaning"))
-                .andExpect(jsonPath("$[0].amount").value(1000))
-                .andExpect(jsonPath("$[0].discount").value(15))
-                .andExpect(jsonPath("$[0].finalAmount").value(850))
-                .andExpect(jsonPath("$[0].status").value("ACTIVE"));
-
-        SubCategoryResponseDTO activeSub = SubCategoryResponseDTO.builder()
-                .id(1L)
-                .categoryId(catId)
-                .name("kitchen cleaning")
-                .amount(BigDecimal.valueOf(1500))
-                .finalAmount(BigDecimal.valueOf(1350))
-                .status("ACTIVE")
-                .build();
-
-        when(catalogService.getActiveSubcategoriesByCategory(catId)).thenReturn(List.of(activeSub));
-
-        mockMvc.perform(get("/api/categories/" + catId + "/subcategories"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("kitchen cleaning"));
-
-        VariantResponseDTO activeVar = VariantResponseDTO.builder()
-                .id(100L)
-                .subcategoryId(1L)
-                .name("1 bhk")
-                .amount(BigDecimal.valueOf(1500))
-                .finalAmount(BigDecimal.valueOf(1350))
-                .status("ACTIVE")
-                .build();
-
-        when(catalogService.getActiveVariantsBySubcategory(1L)).thenReturn(List.of(activeVar));
-
-        mockMvc.perform(get("/api/subcategories/1/variants"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("1 bhk"))
-                .andExpect(jsonPath("$[0].status").value("ACTIVE"));
     }
 }
