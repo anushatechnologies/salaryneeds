@@ -19,6 +19,7 @@ public class WorkerAuthController {
 
     @Autowired
     private WorkerService workerService;
+
     @PostMapping("/check-phone")
     public ResponseEntity<CheckPhoneResponse> checkPhone(@Valid @RequestBody CheckPhoneRequest request) {
         CheckPhoneResponse response = workerService.checkPhone(request);
@@ -37,3 +38,5 @@ public class WorkerAuthController {
         return ResponseEntity.ok(response);
     }
 }
+
+

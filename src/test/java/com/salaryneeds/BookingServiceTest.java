@@ -1,8 +1,10 @@
 package com.salaryneeds;
 
 import com.salaryneeds.dto.*;
+import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Booking;
 import com.salaryneeds.entity.enums.BookingStatus;
+import com.salaryneeds.entity.enums.DiscountType;
 import com.salaryneeds.exception.InvalidBookingStateException;
 import com.salaryneeds.repository.AddressRepository;
 import com.salaryneeds.repository.BookingRepository;
@@ -21,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -92,7 +95,6 @@ class BookingServiceTest {
                 .build();
 
         when(customerRepository.existsById(any(UUID.class))).thenReturn(true);
-        when(passwordEncoder.encode(any())).thenReturn("hashedPin");
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> {
             Booking b = invocation.getArgument(0);
             b.setId(101L);
@@ -104,7 +106,7 @@ class BookingServiceTest {
         assertNotNull(response);
         assertEquals(101L, response.getId());
         assertEquals(BookingStatus.PENDING, response.getStatus());
-        // PIN must be masked on creation
+        // PIN must be masked / null on creation
         assertNull(response.getStartPin());
         verify(bookingRepository, times(1)).save(any(Booking.class));
     }
@@ -130,7 +132,6 @@ class BookingServiceTest {
 
         when(customerRepository.existsById(any(UUID.class))).thenReturn(true);
         when(couponService.validateCoupon(eq("WELCOME50"), any(), any(), any())).thenReturn(couponResponse);
-        when(passwordEncoder.encode(any())).thenReturn("hashedPin");
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         BookingResponseDTO response = bookingService.createBooking(request, customerId);
@@ -142,29 +143,29 @@ class BookingServiceTest {
     }
 
     @Test
-    @DisplayName("Security Rule: Start PIN is masked when status is PENDING or CONFIRMED")
+    @DisplayName("Security Rule: Start PIN is null when status is PENDING (not yet accepted by worker)")
     void testGetBooking_PinMaskedWhenPending() {
-        sampleBooking.setStatus(BookingStatus.CONFIRMED);
+        sampleBooking.setStatus(BookingStatus.PENDING);
         when(bookingRepository.findById(101L)).thenReturn(Optional.of(sampleBooking));
 
         BookingResponseDTO response = bookingService.getBookingById(101L, customerId);
 
         assertNotNull(response);
-        assertEquals(BookingStatus.CONFIRMED, response.getStatus());
-        assertNull(response.getStartPin(), "PIN must be null/masked when status is not ARRIVED");
+        assertEquals(BookingStatus.PENDING, response.getStatus());
+        assertNull(response.getStartPin(), "PIN must be null/masked when status is PENDING");
     }
 
     @Test
-    @DisplayName("Security Rule: Start PIN is REVEALED when status is ARRIVED")
-    void testGetBooking_PinRevealedWhenArrived() {
-        sampleBooking.setStatus(BookingStatus.ARRIVED);
+    @DisplayName("Security Rule: Start PIN is REVEALED when worker accepts booking (status ACCEPTED)")
+    void testGetBooking_PinRevealedWhenAccepted() {
+        sampleBooking.setStatus(BookingStatus.ACCEPTED);
         when(bookingRepository.findById(101L)).thenReturn(Optional.of(sampleBooking));
 
         BookingResponseDTO response = bookingService.getBookingById(101L, customerId);
 
         assertNotNull(response);
-        assertEquals(BookingStatus.ARRIVED, response.getStatus());
-        assertEquals("4589", response.getStartPin(), "PIN must be revealed when worker is ARRIVED");
+        assertEquals(BookingStatus.ACCEPTED, response.getStatus());
+        assertEquals("4589", response.getStartPin(), "PIN must be revealed when worker accepts booking");
     }
 
     @Test
@@ -227,5 +228,18 @@ class BookingServiceTest {
         assertEquals(4, slots.size());
         assertTrue(slots.stream().anyMatch(s -> s.getSlotId().equals("SLOT-0912")));
         assertTrue(slots.stream().anyMatch(s -> s.getSlotId().equals("SLOT-1215")));
+    }
+
+    @Test
+    @DisplayName("Dynamic Slots - Instamart-style cutoff matches slot end time")
+    void testGetAvailableSlots_InstamartCutoff() {
+        LocalDate testDate = LocalDate.now(BookingServiceImpl.BUSINESS_ZONE).plusDays(1);
+        List<SlotResponseDTO> slots = bookingService.getAvailableSlots(1L, testDate);
+
+        assertNotNull(slots);
+        SlotResponseDTO slot1215 = slots.stream().filter(s -> s.getSlotId().equals("SLOT-1215")).findFirst().orElseThrow();
+        assertEquals("15:00", slot1215.getEndTime());
+        assertEquals(testDate.atTime(15, 0), slot1215.getCutoffTime());
+        assertTrue(slot1215.getIsAvailable());
     }
 }

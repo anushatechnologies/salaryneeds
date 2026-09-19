@@ -26,7 +26,4 @@ public class CustomerUpdateRequestDTO {
     private String defaultAddress;
 
     private String accountStatus;
-
-    @Size(min = 6, max = 100, message = "Password must be between 6 and 100 characters")
-    private String password;
 }

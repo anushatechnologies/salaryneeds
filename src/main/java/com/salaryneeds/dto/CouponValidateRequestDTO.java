@@ -1,8 +1,7 @@
 package com.salaryneeds.dto;
 
-import jakarta.validation.constraints.DecimalMin;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,13 +16,28 @@ import java.math.BigDecimal;
 public class CouponValidateRequestDTO {
 
     @NotBlank(message = "Coupon code is required")
+    @com.fasterxml.jackson.annotation.JsonAlias({"couponCode", "coupon_code"})
     private String code;
 
-    @NotNull(message = "Order amount is required")
-    @DecimalMin(value = "0.01", message = "Order amount must be greater than zero")
+    @com.fasterxml.jackson.annotation.JsonAlias({"bookingAmount", "booking_amount", "amount", "orderAmount", "order_amount"})
     private BigDecimal orderAmount;
+
+    private BigDecimal price;
 
     private Long serviceId;
 
+    @JsonProperty("customer_id")
+    @com.fasterxml.jackson.annotation.JsonAlias({"customerId", "customer_id", "userId", "user_id"})
     private String customerId;
+
+    @JsonProperty("booking_id")
+    @com.fasterxml.jackson.annotation.JsonAlias({"bookingId", "booking_id"})
+    private Long bookingId;
+
+    public BigDecimal getOrderAmount() {
+        if (orderAmount != null) {
+            return orderAmount;
+        }
+        return price;
+    }
 }

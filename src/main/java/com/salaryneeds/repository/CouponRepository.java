@@ -15,7 +15,9 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
 
     boolean existsByCodeIgnoreCase(String code);
 
+    Page<Coupon> findByIsActive(Boolean isActive, Pageable pageable);
+
     Page<Coupon> findByCodeContainingIgnoreCase(String code, Pageable pageable);
 
-    Page<Coupon> findByIsActive(Boolean isActive, Pageable pageable);
+    Page<Coupon> findByIsActiveAndCodeContainingIgnoreCase(Boolean isActive, String code, Pageable pageable);
 }

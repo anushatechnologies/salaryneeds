@@ -1,6 +1,7 @@
 package com.salaryneeds.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -25,6 +26,16 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Category Not Found", ex.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(CatalogServiceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCatalogServiceNotFound(CatalogServiceNotFoundException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Service Not Found", ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(SubCategoryNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleSubCategoryNotFound(SubCategoryNotFoundException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Sub-Category Not Found", ex.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(AddressNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleAddressNotFound(AddressNotFoundException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Address Not Found", ex.getMessage(), request.getRequestURI());
@@ -32,7 +43,27 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BookingNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleBookingNotFound(BookingNotFoundException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, "Booking Not Found", ex.getMessage(), request.getRequestURI());
+        String uri = request != null ? request.getRequestURI() : "";
+        if (uri.contains("worker")) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", "BOOKING_NOT_FOUND");
+            response.put("message", ex.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Booking Not Found", ex.getMessage(), uri);
+    }
+
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<Map<String, Object>> handleApiException(ApiException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", ex.getStatus() != null ? ex.getStatus().value() : HttpStatus.BAD_REQUEST.value());
+        response.put("error", ex.getErrorCode() != null ? ex.getErrorCode() : "API_ERROR");
+        response.put("message", ex.getMessage());
+        response.put("path", request != null ? request.getRequestURI() : "");
+        return ResponseEntity.status(ex.getStatus() != null ? ex.getStatus() : HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(WorkerNotFoundException.class)
@@ -50,14 +81,104 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Coupon Not Found", ex.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(DuplicateCatalogServiceException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateCatalogService(DuplicateCatalogServiceException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Service", ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(DuplicateCategoryException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateCategory(DuplicateCategoryException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Category", ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(DuplicateSubCategoryException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateSubCategory(DuplicateSubCategoryException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Sub-Category", ex.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateEmail(DuplicateEmailException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Email", ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(DuplicatePhoneException.class)
-    public ResponseEntity<Map<String, Object>> handleDuplicatePhone(DuplicatePhoneException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Phone", ex.getMessage(), request.getRequestURI());
+    @ExceptionHandler(PhoneAlreadyExistsException.class)
+    public ResponseEntity<Map<String, Object>> handlePhoneAlreadyExists(PhoneAlreadyExistsException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "PHONE_ALREADY_EXISTS");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(InvalidOtpException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidOtp(InvalidOtpException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "INVALID_OTP");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(AccountNotActiveException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountNotActive(AccountNotActiveException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "ACCOUNT_NOT_ACTIVE");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(LeadAlreadyClaimedException.class)
+    public ResponseEntity<Map<String, Object>> handleLeadAlreadyClaimed(LeadAlreadyClaimedException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "LEAD_ALREADY_CLAIMED");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(BookingAlreadyAssignedException.class)
+    public ResponseEntity<Map<String, Object>> handleBookingAlreadyAssigned(BookingAlreadyAssignedException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "LEAD_ALREADY_CLAIMED");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(BookingOfferNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleBookingOfferNotFound(BookingOfferNotFoundException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "BOOKING_NOT_FOUND", ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(UnprocessableStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleUnprocessableStatus(UnprocessableStatusException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "UNPROCESSABLE_STATUS");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
+    }
+
+    @ExceptionHandler(InvalidCatalogDataException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCatalogData(InvalidCatalogDataException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Invalid Catalog Data", ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Map<String, Object>> handleForbidden(ForbiddenException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request.getRequestURI());
     }
 
     @ExceptionHandler(InvalidBookingStateException.class)
@@ -75,14 +196,9 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(InvalidFileException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidFile(InvalidFileException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Invalid File", ex.getMessage(), request.getRequestURI());
-    }
-
-    @ExceptionHandler(StorageException.class)
-    public ResponseEntity<Map<String, Object>> handleStorageException(StorageException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Storage Error", ex.getMessage(), request.getRequestURI());
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "Data Conflict", "Database constraint violated: duplicate or invalid data", request.getRequestURI());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -92,33 +208,25 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 fieldErrors.put(error.getField(), error.getDefaultMessage())
         );
+        String uri = request != null ? request.getRequestURI() : "";
         response.put("timestamp", LocalDateTime.now());
         response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Validation Failed");
+        if (uri.contains("worker")) {
+            response.put("error", "INVALID_PAYLOAD");
+        } else {
+            response.put("error", "Validation Failed");
+        }
         response.put("message", "One or more request parameters failed validation");
-        response.put("path", request.getRequestURI());
+        response.put("path", uri);
         response.put("fieldErrors", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Type Mismatch", "Invalid parameter: " + ex.getName() + " with value: " + ex.getValue(), request.getRequestURI());
-    }
-
-    @ExceptionHandler(AdminNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleAdminNotFound(AdminNotFoundException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Authentication Failed", ex.getMessage(), request.getRequestURI());
-    }
-
-    @ExceptionHandler(UnauthorizedAdminException.class)
-    public ResponseEntity<Map<String, Object>> handleUnauthorizedAdmin(UnauthorizedAdminException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage(), request.getRequestURI());
-    }
-
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage(), request.getRequestURI());
+        String name = ex.getName();
+        Object value = ex.getValue();
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Type Mismatch", "Invalid format for parameter '" + name + "': " + value, request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)

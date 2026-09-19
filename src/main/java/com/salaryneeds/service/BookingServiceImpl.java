@@ -3,6 +3,7 @@ package com.salaryneeds.service;
 import com.salaryneeds.dto.*;
 import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Booking;
+import com.salaryneeds.entity.Customer;
 import com.salaryneeds.entity.ServiceItem;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.entity.enums.BookingStatusTab;
@@ -11,6 +12,8 @@ import com.salaryneeds.repository.AddressRepository;
 import com.salaryneeds.repository.BookingRepository;
 import com.salaryneeds.repository.CustomerRepository;
 import com.salaryneeds.repository.ServiceItemRepository;
+import com.salaryneeds.repository.WorkerProfileRepository;
+import com.salaryneeds.util.GeoDistanceUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +26,7 @@ import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,20 +35,27 @@ import java.util.stream.Collectors;
 @Transactional
 public class BookingServiceImpl implements BookingService {
 
+    public static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Kolkata");
+
     private final BookingRepository bookingRepository;
     private final CustomerRepository customerRepository;
     private final AddressRepository addressRepository;
     private final ServiceItemRepository serviceItemRepository;
     private final CouponService couponService;
     private final PasswordEncoder passwordEncoder;
+    private final WorkerMatchingService workerMatchingService;
+    private final WorkerProfileRepository workerProfileRepository;
+    private final com.salaryneeds.repository.WorkerLocationRepository workerLocationRepository;
+    private final NotificationService notificationService;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Override
     @Transactional(readOnly = true)
     public List<SlotResponseDTO> getAvailableSlots(Long serviceId, LocalDate date) {
-        LocalDate targetDate = (date != null) ? date : LocalDate.now();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        LocalDate targetDate = (date != null) ? date : today;
+        LocalDateTime now = LocalDateTime.now(BUSINESS_ZONE);
 
         List<SlotDefinition> definitions = Arrays.asList(
                 new SlotDefinition("SLOT-0912", "09:00 AM - 12:00 PM", LocalTime.of(9, 0), LocalTime.of(12, 0)),
@@ -57,15 +68,17 @@ public class BookingServiceImpl implements BookingService {
 
         for (SlotDefinition def : definitions) {
             LocalDateTime slotStart = targetDate.atTime(def.startTime);
-            LocalDateTime cutoffTime = slotStart.minusHours(1); // 1 hour cutoff prior to slot start
+            LocalDateTime slotEnd = targetDate.atTime(def.endTime);
+            // Instamart-style: Slot remains active and bookable until the slot window ends (e.g., 3:00 PM for 12:00 PM - 03:00 PM)
+            LocalDateTime cutoffTime = slotEnd;
 
             boolean isAvailable = true;
             String message = "Available";
 
-            if (targetDate.isBefore(LocalDate.now())) {
+            if (targetDate.isBefore(today)) {
                 isAvailable = false;
                 message = "Slot date is in the past";
-            } else if (targetDate.isEqual(LocalDate.now()) && now.isAfter(cutoffTime)) {
+            } else if (targetDate.isEqual(today) && now.isAfter(cutoffTime)) {
                 isAvailable = false;
                 message = "Booking cutoff time passed for this slot";
             } else if (serviceId != null) {
@@ -129,14 +142,23 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // Address Summary
+        // Address Summary & Coordinates
         String addressSummary = null;
+        Double customerLat = request.getCustomerLat();
+        Double customerLng = request.getCustomerLng();
         if (request.getAddressId() != null && !request.getAddressId().isBlank()) {
             try {
                 UUID addrUuid = UUID.fromString(request.getAddressId());
                 Optional<Address> addrOpt = addressRepository.findById(addrUuid);
                 if (addrOpt.isPresent()) {
-                    addressSummary = addrOpt.get().toFormattedAddress();
+                    Address addr = addrOpt.get();
+                    addressSummary = addr.toFormattedAddress();
+                    if (customerLat == null) {
+                        customerLat = addr.getLat();
+                    }
+                    if (customerLng == null) {
+                        customerLng = addr.getLng();
+                    }
                 }
             } catch (IllegalArgumentException ignored) {
             }
@@ -158,11 +180,6 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // Generate 4-digit start PIN
-        String rawPin = String.format("%04d", 1000 + SECURE_RANDOM.nextInt(9000));
-        String pinHash = passwordEncoder.encode(rawPin);
-        LocalDateTime pinExpiresAt = request.getBookingDate().atTime(23, 59, 59);
-
         Booking booking = Booking.builder()
                 .customerId(effectiveCustomerId)
                 .serviceId(request.getServiceId())
@@ -175,18 +192,28 @@ public class BookingServiceImpl implements BookingService {
                 .payableAmount(payableAmount)
                 .addressId(request.getAddressId())
                 .addressSummary(addressSummary)
+                .customerLat(customerLat)
+                .customerLng(customerLng)
                 .slotId(request.getSlotId() != null ? request.getSlotId() : "SLOT-0912")
                 .scheduledTime(request.getScheduledTime() != null ? request.getScheduledTime() : "09:00 AM - 12:00 PM")
                 .couponCode(request.getCouponCode())
                 .notes(request.getNotes())
-                .startPinHash(pinHash)
-                .startPinEncrypted(rawPin) // Secure storage for ARRIVED reveal
+                .startPinHash(null)
+                .startPinEncrypted(null)
                 .startPinVerified(false)
                 .pinAttempts(0)
-                .pinExpiresAt(pinExpiresAt)
+                .pinExpiresAt(null)
                 .build();
 
         Booking savedBooking = bookingRepository.save(booking);
+
+        // Trigger Worker Matching Engine to generate offers for eligible workers
+        try {
+            workerMatchingService.matchAndCreateOffers(savedBooking);
+        } catch (Exception e) {
+            // Log matching error so booking creation is never blocked
+        }
+
         return mapToResponseDTO(savedBooking);
     }
 
@@ -308,6 +335,10 @@ public class BookingServiceImpl implements BookingService {
         booking.setRefundAmount(refundAmount);
         booking.setCancelledAt(LocalDateTime.now());
 
+        try {
+            couponService.reverseCouponRedemption(bookingId);
+        } catch (Exception ignored) {}
+
         bookingRepository.save(booking);
 
         return CancelBookingResponseDTO.builder()
@@ -356,7 +387,19 @@ public class BookingServiceImpl implements BookingService {
             booking.setWorkerId(workerId);
         }
 
-        if (status == BookingStatus.IN_PROGRESS && booking.getServiceStartedAt() == null) {
+        if (status == BookingStatus.ACCEPTED || status == BookingStatus.ASSIGNED) {
+            if (booking.getAcceptedAt() == null) {
+                booking.setAcceptedAt(LocalDateTime.now());
+            }
+            if (booking.getStartPinEncrypted() == null) {
+                String rawPin = String.format("%04d", 1000 + SECURE_RANDOM.nextInt(9000));
+                booking.setStartPinHash(passwordEncoder.encode(rawPin));
+                booking.setStartPinEncrypted(rawPin);
+                booking.setPinAttempts(0);
+                booking.setStartPinVerified(false);
+                booking.setPinExpiresAt(LocalDateTime.now().plusDays(2));
+            }
+        } else if (status == BookingStatus.IN_PROGRESS && booking.getServiceStartedAt() == null) {
             booking.setServiceStartedAt(LocalDateTime.now());
         } else if (status == BookingStatus.COMPLETED && booking.getServiceCompletedAt() == null) {
             booking.setServiceCompletedAt(LocalDateTime.now());
@@ -400,9 +443,246 @@ public class BookingServiceImpl implements BookingService {
         return mapToResponseDTO(saved);
     }
 
+    @Override
+    public WorkerActionResponseDTO startTravel(Long bookingId, String workerId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        if (booking.getWorkerId() == null || !booking.getWorkerId().equals(workerId)) {
+            throw new InvalidBookingStateException("Worker " + workerId + " is not assigned to booking #" + bookingId);
+        }
+
+        if (booking.getStatus() != BookingStatus.ACCEPTED && booking.getStatus() != BookingStatus.ASSIGNED && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new InvalidBookingStateException("Cannot start travel for booking in status: " + booking.getStatus());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        booking.setStatus(BookingStatus.EN_ROUTE);
+        booking.setEnRouteAt(now);
+        bookingRepository.save(booking);
+
+        String navUrl = GeoDistanceUtils.buildGoogleMapsNavigationUrl(booking.getCustomerLat(), booking.getCustomerLng());
+
+        return WorkerActionResponseDTO.builder()
+                .bookingId(bookingId)
+                .workerId(workerId)
+                .status(BookingStatus.EN_ROUTE)
+                .message("Travel started. Turn-by-turn navigation initiated to customer destination.")
+                .navigationUrl(navUrl)
+                .actionTimestamp(now)
+                .build();
+    }
+
+    @Override
+    public WorkerActionResponseDTO workerArrived(Long bookingId, String workerId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        if (booking.getWorkerId() == null || !booking.getWorkerId().equals(workerId)) {
+            throw new InvalidBookingStateException("Worker " + workerId + " is not assigned to booking #" + bookingId);
+        }
+
+        if (booking.getStatus() != BookingStatus.EN_ROUTE && booking.getStatus() != BookingStatus.WORKER_ON_THE_WAY && booking.getStatus() != BookingStatus.ACCEPTED && booking.getStatus() != BookingStatus.ASSIGNED) {
+            throw new InvalidBookingStateException("Cannot mark ARRIVED for booking in status: " + booking.getStatus());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        booking.setStatus(BookingStatus.ARRIVED);
+        booking.setArrivedAt(now);
+        bookingRepository.save(booking);
+
+        return WorkerActionResponseDTO.builder()
+                .bookingId(bookingId)
+                .workerId(workerId)
+                .status(BookingStatus.ARRIVED)
+                .message("Arrived at customer location. Ask customer for 4-digit start PIN to start service.")
+                .navigationUrl(null)
+                .actionTimestamp(now)
+                .build();
+    }
+
+    @Override
+    public WorkerActionResponseDTO verifyStartPin(Long bookingId, String workerId, String pin) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        if (booking.getWorkerId() == null || !booking.getWorkerId().equals(workerId)) {
+            throw new InvalidBookingStateException("Worker " + workerId + " is not assigned to booking #" + bookingId);
+        }
+
+        if (booking.getStatus() != BookingStatus.ARRIVED) {
+            throw new InvalidBookingStateException("PIN verification requires booking to be in ARRIVED status. Current: " + booking.getStatus());
+        }
+
+        if (Boolean.TRUE.equals(booking.getStartPinVerified())) {
+            throw new InvalidBookingStateException("Start PIN has already been verified for this booking.");
+        }
+
+        if (booking.getPinAttempts() != null && booking.getPinAttempts() >= 3) {
+            throw new InvalidPinException("Maximum 3 PIN verification attempts exceeded. Please regenerate PIN.");
+        }
+
+        boolean isValid = false;
+        if (booking.getStartPinHash() != null && passwordEncoder.matches(pin, booking.getStartPinHash())) {
+            isValid = true;
+        } else if (pin != null && pin.equals(booking.getStartPinEncrypted())) {
+            isValid = true;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (!isValid) {
+            int attempts = (booking.getPinAttempts() != null ? booking.getPinAttempts() : 0) + 1;
+            booking.setPinAttempts(attempts);
+            bookingRepository.save(booking);
+            int remaining = Math.max(0, 3 - attempts);
+            throw new InvalidPinException("Incorrect 4-digit PIN. Attempts remaining: " + remaining);
+        }
+
+        booking.setStartPinVerified(true);
+        booking.setStatus(BookingStatus.IN_PROGRESS);
+        booking.setServiceStartedAt(now);
+        bookingRepository.save(booking);
+
+        return WorkerActionResponseDTO.builder()
+                .bookingId(bookingId)
+                .workerId(workerId)
+                .status(BookingStatus.IN_PROGRESS)
+                .message("Service start PIN verified successfully. Service is now IN_PROGRESS.")
+                .navigationUrl(null)
+                .actionTimestamp(now)
+                .build();
+    }
+
+    @Override
+    public WorkerActionResponseDTO completeService(Long bookingId, String workerId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        if (booking.getWorkerId() == null || !booking.getWorkerId().equals(workerId)) {
+            throw new InvalidBookingStateException("Worker " + workerId + " is not assigned to booking #" + bookingId);
+        }
+
+        if (booking.getStatus() != BookingStatus.IN_PROGRESS) {
+            throw new InvalidBookingStateException("Service cannot be completed unless it is IN_PROGRESS. Current: " + booking.getStatus());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        booking.setStatus(BookingStatus.COMPLETED);
+        booking.setServiceCompletedAt(now);
+        bookingRepository.save(booking);
+
+        // Increment worker completed jobs count
+        try {
+            UUID wUuid = UUID.fromString(workerId);
+            workerProfileRepository.findById(wUuid).ifPresent(w -> {
+                w.setCompletedJobsCount((w.getCompletedJobsCount() != null ? w.getCompletedJobsCount() : 0) + 1);
+                workerProfileRepository.save(w);
+            });
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        return WorkerActionResponseDTO.builder()
+                .bookingId(bookingId)
+                .workerId(workerId)
+                .status(BookingStatus.COMPLETED)
+                .message("Service completed successfully! Job recorded.")
+                .actionTimestamp(now)
+                .build();
+    }
+
+    @Override
+    public WorkerLocationResponseDTO updateWorkerLocation(Long bookingId, String workerId, WorkerLocationRequestDTO request) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        if (booking.getWorkerId() == null || !booking.getWorkerId().equals(workerId)) {
+            throw new InvalidBookingStateException("Worker " + workerId + " is not assigned to booking #" + bookingId);
+        }
+
+        com.salaryneeds.entity.WorkerLocation location = com.salaryneeds.entity.WorkerLocation.builder()
+                .bookingId(bookingId)
+                .workerId(workerId)
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .accuracy(request.getAccuracy())
+                .build();
+
+        com.salaryneeds.entity.WorkerLocation saved = workerLocationRepository.save(location);
+
+        // Also update worker profile last known location
+        try {
+            UUID workerUuid = UUID.fromString(workerId);
+            workerProfileRepository.findById(workerUuid).ifPresent(worker -> {
+                worker.setLastLat(request.getLatitude());
+                worker.setLastLng(request.getLongitude());
+                workerProfileRepository.save(worker);
+            });
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        WorkerLocationResponseDTO responseDTO = WorkerLocationResponseDTO.builder()
+                .bookingId(bookingId)
+                .workerId(workerId)
+                .latitude(saved.getLatitude())
+                .longitude(saved.getLongitude())
+                .accuracy(saved.getAccuracy())
+                .timestamp(saved.getTimestamp() != null ? saved.getTimestamp() : LocalDateTime.now())
+                .build();
+
+        // Broadcast to WebSocket: /topic/bookings/{bookingId}/worker-location
+        notificationService.broadcastWorkerLocation(bookingId, responseDTO);
+
+        return responseDTO;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public WorkerLocationResponseDTO getLatestWorkerLocation(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        return workerLocationRepository.findFirstByBookingIdOrderByTimestampDesc(bookingId)
+                .map(loc -> WorkerLocationResponseDTO.builder()
+                        .bookingId(loc.getBookingId())
+                        .workerId(loc.getWorkerId())
+                        .latitude(loc.getLatitude())
+                        .longitude(loc.getLongitude())
+                        .accuracy(loc.getAccuracy())
+                        .timestamp(loc.getTimestamp())
+                        .build())
+                .orElseGet(() -> {
+                    // Fallback to worker profile lastLat/lastLng if trip just started
+                    if (booking.getWorkerId() != null) {
+                        try {
+                            UUID wUuid = UUID.fromString(booking.getWorkerId());
+                            return workerProfileRepository.findById(wUuid)
+                                    .filter(w -> w.getLastLat() != null && w.getLastLng() != null)
+                                    .map(w -> WorkerLocationResponseDTO.builder()
+                                            .bookingId(bookingId)
+                                            .workerId(booking.getWorkerId())
+                                            .latitude(w.getLastLat())
+                                            .longitude(w.getLastLng())
+                                            .accuracy(null)
+                                            .timestamp(LocalDateTime.now())
+                                            .build())
+                                    .orElse(null);
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                    return null;
+                });
+    }
+
     private BookingResponseDTO mapToResponseDTO(Booking booking) {
-        // SECURITY RULE: 4-digit start PIN is ONLY revealed to the customer when status == ARRIVED
-        String revealedPin = (booking.getStatus() == BookingStatus.ARRIVED) ? booking.getStartPinEncrypted() : null;
+        // 4-digit start PIN is revealed to the customer once a worker accepts the booking
+        boolean isAcceptedOrLater = booking.getStatus() == BookingStatus.ACCEPTED
+                || booking.getStatus() == BookingStatus.ASSIGNED
+                || booking.getStatus() == BookingStatus.EN_ROUTE
+                || booking.getStatus() == BookingStatus.WORKER_ON_THE_WAY
+                || booking.getStatus() == BookingStatus.ARRIVED
+                || booking.getStatus() == BookingStatus.IN_PROGRESS;
+        String revealedPin = isAcceptedOrLater ? booking.getStartPinEncrypted() : null;
+        String navUrl = GeoDistanceUtils.buildGoogleMapsNavigationUrl(booking.getCustomerLat(), booking.getCustomerLng());
 
         return BookingResponseDTO.builder()
                 .id(booking.getId())
@@ -418,6 +698,9 @@ public class BookingServiceImpl implements BookingService {
                 .payableAmount(booking.getPayableAmount())
                 .addressId(booking.getAddressId())
                 .addressSummary(booking.getAddressSummary())
+                .customerLat(booking.getCustomerLat())
+                .customerLng(booking.getCustomerLng())
+                .navigationUrl(navUrl)
                 .slotId(booking.getSlotId())
                 .scheduledTime(booking.getScheduledTime())
                 .couponCode(booking.getCouponCode())
@@ -425,6 +708,9 @@ public class BookingServiceImpl implements BookingService {
                 .startPin(revealedPin)
                 .startPinVerified(booking.getStartPinVerified())
                 .pinExpiresAt(booking.getPinExpiresAt())
+                .acceptedAt(booking.getAcceptedAt())
+                .enRouteAt(booking.getEnRouteAt())
+                .arrivedAt(booking.getArrivedAt())
                 .cancellationReason(booking.getCancellationReason())
                 .cancellationFee(booking.getCancellationFee())
                 .refundAmount(booking.getRefundAmount())
