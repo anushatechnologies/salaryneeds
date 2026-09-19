@@ -14,8 +14,12 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String path = request.getRequestURI();
 
-        // Only enforce for admin endpoints
-        if (path.startsWith("/admin") || path.startsWith("/api/v1/admin")) {
+        // 1. Admin catalog endpoints (exclude open partner operations / reviews / document verification)
+        if (path.startsWith("/api/v1/admin") || path.startsWith("/api/admin") || path.startsWith("/admin")) {
+            if (path.startsWith("/admin/workers") || path.startsWith("/admin/reviews")) {
+                return true;
+            }
+
             String role = request.getHeader("X-Role");
             String adminRole = request.getHeader("X-Admin-Role");
             String authHeader = request.getHeader("Authorization");
@@ -30,6 +34,56 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
 
             if (!isAdmin) {
                 throw new ForbiddenException("Access denied: Administrator role required to access " + path);
+            }
+        }
+
+        // 2. User catalogue endpoints
+        if (path.startsWith("/api/user") || path.startsWith("/user/categories") || path.startsWith("/user/subcategories")) {
+            String role = request.getHeader("X-Role");
+            String userId = request.getHeader("X-User-Id");
+            String customerId = request.getHeader("X-Customer-Id");
+            String authHeader = request.getHeader("Authorization");
+
+            if (role == null && userId == null && customerId == null && authHeader == null) {
+                throw new UnauthorizedException("Authentication required: Missing user credentials");
+            }
+
+            if ("WORKER".equalsIgnoreCase(role)) {
+                throw new ForbiddenException("Access denied: User role required to access " + path);
+            }
+
+            boolean isUser = "USER".equalsIgnoreCase(role) ||
+                             "CUSTOMER".equalsIgnoreCase(role) ||
+                             "ADMIN".equalsIgnoreCase(role) ||
+                             userId != null || customerId != null ||
+                             (authHeader != null && !authHeader.toUpperCase().contains("WORKER"));
+
+            if (!isUser) {
+                throw new ForbiddenException("Access denied: User role required to access " + path);
+            }
+        }
+
+        // 3. Worker catalogue endpoints
+        if (path.startsWith("/api/worker") || path.startsWith("/worker/catalog")) {
+            String role = request.getHeader("X-Role");
+            String workerId = request.getHeader("X-Worker-Id");
+            String authHeader = request.getHeader("Authorization");
+
+            if (role == null && workerId == null && authHeader == null) {
+                throw new UnauthorizedException("Authentication required: Missing worker credentials");
+            }
+
+            if ("USER".equalsIgnoreCase(role) || "CUSTOMER".equalsIgnoreCase(role)) {
+                throw new ForbiddenException("Access denied: Worker role required to access " + path);
+            }
+
+            boolean isWorker = "WORKER".equalsIgnoreCase(role) ||
+                               "ADMIN".equalsIgnoreCase(role) ||
+                               workerId != null ||
+                               (authHeader != null && authHeader.toUpperCase().contains("WORKER"));
+
+            if (!isWorker) {
+                throw new ForbiddenException("Access denied: Worker role required to access " + path);
             }
         }
 

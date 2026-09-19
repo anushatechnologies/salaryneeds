@@ -1,6 +1,5 @@
--- V8: 3-Tier Catalog Schema (Service -> Category -> Sub-Category)
+-- V8: 3-Tier Catalog Schema (Service -> Category -> Sub-Category) (PostgreSQL)
 
--- 1. Create Top-Level Services Master Table
 CREATE TABLE IF NOT EXISTS CATALOG_SERVICES (
     id UUID PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,

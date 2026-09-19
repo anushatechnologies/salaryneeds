@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -17,6 +18,9 @@ public class CategoryDTO {
     private UUID id;
     private String name;
     private String description;
+    private BigDecimal amount;
+    private BigDecimal discount;
+    private BigDecimal finalAmount;
     private String iconUrl;
     private Integer displayOrder;
     private Boolean isActive;

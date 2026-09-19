@@ -4,10 +4,12 @@ import com.salaryneeds.dto.catalog.*;
 import com.salaryneeds.entity.CatalogServiceEntity;
 import com.salaryneeds.entity.Category;
 import com.salaryneeds.entity.ServiceItem;
+import com.salaryneeds.entity.Variant;
 import com.salaryneeds.exception.*;
 import com.salaryneeds.repository.CatalogServiceRepository;
 import com.salaryneeds.repository.CategoryRepository;
 import com.salaryneeds.repository.ServiceItemRepository;
+import com.salaryneeds.repository.VariantRepository;
 import com.salaryneeds.util.CatalogNameNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,6 +30,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     private final CatalogServiceRepository catalogServiceRepository;
     private final CategoryRepository categoryRepository;
     private final ServiceItemRepository serviceItemRepository;
+    private final VariantRepository variantRepository;
 
     // ==========================================
     // 1. SERVICE (TOP LEVEL)
@@ -187,14 +191,59 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     }
 
     // ==========================================
-    // 2. CATEGORY (MIDDLE LEVEL)
+    // 2. CATEGORY OPERATIONS
     // ==========================================
+
+    @Override
+    @Transactional
+    public CategoryResponseDTO createCategory(CategoryRequestDTO request) {
+        if (request == null) {
+            throw new InvalidCatalogDataException("Request body must not be null");
+        }
+        if (request.getServiceId() != null) {
+            return createCategory(request.getServiceId(), request);
+        }
+
+        CatalogNameNormalizer.validateCatalogName(request.getName(), "Category name", 255);
+        CatalogNameNormalizer.validateOptionalText(request.getDescription(), "Description", 500);
+
+        String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
+
+        if (categoryRepository.existsByName(lowerCaseName)) {
+            throw new DuplicateCategoryException("A Category with the name '" + lowerCaseName + "' already exists");
+        }
+
+        Boolean isActive = true;
+        if (request.getStatus() != null) {
+            CatalogStatus status = CatalogStatus.fromString(request.getStatus());
+            isActive = CatalogStatus.toBoolean(status);
+        }
+
+        BigDecimal amount = request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO;
+        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
+        BigDecimal finalAmount = calculateFinalAmount(amount, discount, request.getFinalAmount());
+
+        Category category = Category.builder()
+                .name(lowerCaseName)
+                .description(request.getDescription())
+                .amount(amount)
+                .discount(discount)
+                .finalAmount(finalAmount)
+                .iconUrl(request.getImageUrl())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .isActive(isActive)
+                .build();
+
+        Category saved = categoryRepository.save(category);
+        log.info("Created standalone Category with ID: {} and Name: {}", saved.getId(), saved.getName());
+        return mapToCategoryResponseDTO(saved, false);
+    }
 
     @Override
     @Transactional
     public CategoryResponseDTO createCategory(UUID serviceId, CategoryRequestDTO request) {
         if (serviceId == null) {
-            throw new InvalidCatalogDataException("Parent Service ID must not be null");
+            return createCategory(request);
         }
         if (request == null) {
             throw new InvalidCatalogDataException("Request body must not be null");
@@ -203,7 +252,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         CatalogServiceEntity parentService = catalogServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new CatalogServiceNotFoundException("Parent Service not found with ID: " + serviceId));
 
-        CatalogNameNormalizer.validateCatalogName(request.getName(), "Category name", 100);
+        CatalogNameNormalizer.validateCatalogName(request.getName(), "Category name", 255);
         CatalogNameNormalizer.validateOptionalText(request.getDescription(), "Description", 500);
 
         String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
@@ -219,10 +268,17 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             isActive = CatalogStatus.toBoolean(status);
         }
 
+        BigDecimal amount = request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO;
+        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
+        BigDecimal finalAmount = calculateFinalAmount(amount, discount, request.getFinalAmount());
+
         Category category = Category.builder()
                 .service(parentService)
                 .name(lowerCaseName)
                 .description(request.getDescription())
+                .amount(amount)
+                .discount(discount)
+                .finalAmount(finalAmount)
                 .iconUrl(request.getImageUrl())
                 .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .isActive(isActive)
@@ -231,6 +287,12 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         Category saved = categoryRepository.save(category);
         log.info("Created Category with ID: {} under Service: {}", saved.getId(), parentService.getName());
         return mapToCategoryResponseDTO(saved, false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryResponseDTO> getAllCategories(String search, String status) {
+        return getCategoriesByService(null, search, status);
     }
 
     @Override
@@ -297,13 +359,15 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         }
 
         if (request.getName() != null) {
-            CatalogNameNormalizer.validateCatalogName(request.getName(), "Category name", 100);
+            CatalogNameNormalizer.validateCatalogName(request.getName(), "Category name", 255);
             String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
 
             UUID targetServiceId = targetService != null ? targetService.getId() : null;
             if (targetServiceId != null && categoryRepository.existsByServiceIdAndNameAndIdNot(targetServiceId, lowerCaseName, categoryId)) {
                 throw new DuplicateCategoryException("A Category with the name '" + lowerCaseName +
                         "' already exists under parent Service '" + targetService.getName() + "'");
+            } else if (targetServiceId == null && categoryRepository.existsByNameAndIdNot(lowerCaseName, categoryId)) {
+                throw new DuplicateCategoryException("A Category with the name '" + lowerCaseName + "' already exists");
             }
 
             category.setName(lowerCaseName);
@@ -313,6 +377,16 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             CatalogNameNormalizer.validateOptionalText(request.getDescription(), "Description", 500);
             category.setDescription(request.getDescription());
         }
+
+        if (request.getAmount() != null) {
+            category.setAmount(request.getAmount());
+        }
+
+        if (request.getDiscount() != null) {
+            category.setDiscount(request.getDiscount());
+        }
+
+        category.calculateFinalAmount();
 
         if (request.getImageUrl() != null) {
             category.setIconUrl(request.getImageUrl());
@@ -366,8 +440,20 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     }
 
     // ==========================================
-    // 3. SUB-CATEGORY (LEAF LEVEL)
+    // 3. SUBCATEGORY / SERVICE (LEAF LEVEL)
     // ==========================================
+
+    @Override
+    @Transactional
+    public SubCategoryResponseDTO createSubCategory(SubCategoryRequestDTO request) {
+        if (request == null) {
+            throw new InvalidCatalogDataException("Request body must not be null");
+        }
+        if (request.getCategoryId() == null) {
+            throw new InvalidCatalogDataException("Category ID is required to create a Subcategory");
+        }
+        return createSubCategory(request.getCategoryId(), request);
+    }
 
     @Override
     @Transactional
@@ -382,7 +468,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         Category parentCategory = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new CategoryNotFoundException("Parent Category not found with ID: " + categoryId));
 
-        CatalogNameNormalizer.validateCatalogName(request.getName(), "Sub-Category name", 150);
+        CatalogNameNormalizer.validateCatalogName(request.getName(), "Sub-Category name", 255);
         CatalogNameNormalizer.validateOptionalText(request.getDescription(), "Description", 2000);
 
         String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
@@ -398,15 +484,20 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             isActive = CatalogStatus.toBoolean(status);
         }
 
+        BigDecimal basePrice = request.getAmount() != null ? request.getAmount() : (request.getBasePrice() != null ? request.getBasePrice() : BigDecimal.ZERO);
+        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
+
+        // Backend strictly calculates finalAmount
+        BigDecimal finalAmount = calculateFinalAmount(basePrice, discount, request.getDiscountPrice());
+
         ServiceItem serviceItem = ServiceItem.builder()
                 .category(parentCategory)
                 .name(lowerCaseName)
                 .description(request.getDescription())
-                .basePrice(request.getBasePrice() != null ? request.getBasePrice() : BigDecimal.ZERO)
-                .discountPrice(request.getDiscountPrice())
-                .durationMinutes(request.getDurationMinutes() != null ? request.getDurationMinutes() : 60)
-                .inclusions(request.getInclusions())
-                .exclusions(request.getExclusions())
+                .basePrice(basePrice)
+                .discount(discount)
+                .discountPrice(finalAmount)
+                .finalAmount(finalAmount)
                 .imageUrl(request.getImageUrl())
                 .isActive(isActive)
                 .build();
@@ -414,6 +505,39 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         ServiceItem saved = serviceItemRepository.save(serviceItem);
         log.info("Created Sub-Category with ID: {} under parent Category: {}", saved.getId(), parentCategory.getName());
         return mapToSubCategoryResponseDTO(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SubCategoryResponseDTO> getAllSubCategories(UUID categoryId, String search, String status) {
+        if (categoryId != null) {
+            return getSubCategoriesByCategory(categoryId, status);
+        }
+
+        Boolean isActive = null;
+        if (status != null && !status.trim().isEmpty()) {
+            CatalogStatus catalogStatus = CatalogStatus.fromString(status);
+            isActive = CatalogStatus.toBoolean(catalogStatus);
+        }
+
+        List<ServiceItem> items;
+        if (isActive != null) {
+            items = serviceItemRepository.findByIsActiveTrue();
+        } else {
+            items = serviceItemRepository.findAll();
+        }
+
+        if (search != null && !search.trim().isEmpty()) {
+            String lowerSearch = CatalogNameNormalizer.toLowerCaseNormalized(search);
+            items = items.stream()
+                    .filter(s -> s.getName().contains(lowerSearch) ||
+                            (s.getDescription() != null && s.getDescription().toLowerCase().contains(lowerSearch)))
+                    .collect(Collectors.toList());
+        }
+
+        return items.stream()
+                .map(this::mapToSubCategoryResponseDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -442,6 +566,12 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     @Override
     @Transactional(readOnly = true)
     public SubCategoryResponseDTO getSubCategoryById(Long subCategoryId) {
+        return getSubCategoryById(subCategoryId, true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SubCategoryResponseDTO getSubCategoryById(Long subCategoryId, boolean includeVariants) {
         if (subCategoryId == null || subCategoryId <= 0) {
             throw new InvalidCatalogDataException("Sub-Category ID must be a valid positive number");
         }
@@ -473,7 +603,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         }
 
         if (request.getName() != null) {
-            CatalogNameNormalizer.validateCatalogName(request.getName(), "Sub-Category name", 150);
+            CatalogNameNormalizer.validateCatalogName(request.getName(), "Sub-Category name", 255);
             String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
 
             if (serviceItemRepository.existsByCategoryIdAndNameAndIdNot(targetParent.getId(), lowerCaseName, subCategoryId)) {
@@ -489,25 +619,15 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             serviceItem.setDescription(request.getDescription());
         }
 
-        if (request.getBasePrice() != null) {
-            serviceItem.setBasePrice(request.getBasePrice());
+        if (request.getAmount() != null) {
+            serviceItem.setBasePrice(request.getAmount());
         }
 
-        if (request.getDiscountPrice() != null) {
-            serviceItem.setDiscountPrice(request.getDiscountPrice());
+        if (request.getDiscount() != null) {
+            serviceItem.setDiscount(request.getDiscount());
         }
 
-        if (request.getDurationMinutes() != null) {
-            serviceItem.setDurationMinutes(request.getDurationMinutes());
-        }
-
-        if (request.getInclusions() != null) {
-            serviceItem.setInclusions(request.getInclusions());
-        }
-
-        if (request.getExclusions() != null) {
-            serviceItem.setExclusions(request.getExclusions());
-        }
+        serviceItem.calculateFinalAmount();
 
         if (request.getImageUrl() != null) {
             serviceItem.setImageUrl(request.getImageUrl());
@@ -557,8 +677,272 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     }
 
     // ==========================================
-    // MAPPERS
+    // 4. OPTIONAL VARIANT OPERATIONS
     // ==========================================
+
+    @Override
+    @Transactional
+    public VariantResponseDTO createVariant(Long subCategoryId, VariantRequestDTO request) {
+        if (subCategoryId == null || subCategoryId <= 0) {
+            throw new InvalidCatalogDataException("Sub-Category ID must be a valid positive number");
+        }
+        if (request == null) {
+            throw new InvalidCatalogDataException("Request body must not be null");
+        }
+
+        ServiceItem parentSubCategory = serviceItemRepository.findById(subCategoryId)
+                .orElseThrow(() -> new SubCategoryNotFoundException("Sub-Category not found with ID: " + subCategoryId));
+
+        CatalogNameNormalizer.validateCatalogName(request.getName(), "Variant name", 255);
+        CatalogNameNormalizer.validateOptionalText(request.getDescription(), "Description", 1000);
+
+        String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
+
+        if (variantRepository.existsBySubcategoryIdAndName(subCategoryId, lowerCaseName)) {
+            throw new DuplicateVariantException("A Variant with the name '" + lowerCaseName +
+                    "' already exists under parent Sub-Category '" + parentSubCategory.getName() + "'");
+        }
+
+        Boolean isActive = true;
+        if (request.getStatus() != null) {
+            CatalogStatus status = CatalogStatus.fromString(request.getStatus());
+            isActive = CatalogStatus.toBoolean(status);
+        }
+
+        BigDecimal amount = request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO;
+        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
+
+        // Backend strictly calculates finalAmount
+        BigDecimal finalAmount = calculateFinalAmount(amount, discount, null);
+
+        Variant variant = Variant.builder()
+                .subcategory(parentSubCategory)
+                .name(lowerCaseName)
+                .description(request.getDescription())
+                .amount(amount)
+                .discount(discount)
+                .finalAmount(finalAmount)
+                .imageUrl(request.getImageUrl())
+                .status(isActive ? "ACTIVE" : "INACTIVE")
+                .isActive(isActive)
+                .build();
+
+        Variant saved = variantRepository.save(variant);
+        log.info("Created Variant with ID: {} under parent Sub-Category: {}", saved.getId(), parentSubCategory.getName());
+        return mapToVariantResponseDTO(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VariantResponseDTO> getVariantsBySubCategory(Long subCategoryId, String status) {
+        if (subCategoryId == null || subCategoryId <= 0) {
+            throw new InvalidCatalogDataException("Sub-Category ID must be a valid positive number");
+        }
+
+        if (!serviceItemRepository.existsById(subCategoryId)) {
+            throw new SubCategoryNotFoundException("Sub-Category not found with ID: " + subCategoryId);
+        }
+
+        Boolean isActive = null;
+        if (status != null && !status.trim().isEmpty()) {
+            CatalogStatus catalogStatus = CatalogStatus.fromString(status);
+            isActive = CatalogStatus.toBoolean(catalogStatus);
+        }
+
+        List<Variant> variants = variantRepository.findBySubcategoryIdAndStatus(subCategoryId, isActive);
+        return variants.stream()
+                .map(this::mapToVariantResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VariantResponseDTO getVariantById(Long variantId) {
+        if (variantId == null || variantId <= 0) {
+            throw new InvalidCatalogDataException("Variant ID must be a valid positive number");
+        }
+
+        Variant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new VariantNotFoundException("Variant not found with ID: " + variantId));
+
+        return mapToVariantResponseDTO(variant);
+    }
+
+    @Override
+    @Transactional
+    public VariantResponseDTO updateVariant(Long variantId, VariantRequestDTO request) {
+        if (variantId == null || variantId <= 0) {
+            throw new InvalidCatalogDataException("Variant ID must be a valid positive number");
+        }
+        if (request == null) {
+            throw new InvalidCatalogDataException("Request body must not be null");
+        }
+
+        Variant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new VariantNotFoundException("Variant not found with ID: " + variantId));
+
+        if (request.getName() != null) {
+            CatalogNameNormalizer.validateCatalogName(request.getName(), "Variant name", 255);
+            String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
+
+            if (variantRepository.existsBySubcategoryIdAndNameAndIdNot(variant.getSubcategory().getId(), lowerCaseName, variantId)) {
+                throw new DuplicateVariantException("A Variant with the name '" + lowerCaseName +
+                        "' already exists under parent Sub-Category '" + variant.getSubcategory().getName() + "'");
+            }
+
+            variant.setName(lowerCaseName);
+        }
+
+        if (request.getDescription() != null) {
+            CatalogNameNormalizer.validateOptionalText(request.getDescription(), "Description", 1000);
+            variant.setDescription(request.getDescription());
+        }
+
+        if (request.getAmount() != null) {
+            variant.setAmount(request.getAmount());
+        }
+
+        if (request.getDiscount() != null) {
+            variant.setDiscount(request.getDiscount());
+        }
+
+        variant.calculateFinalAmount();
+
+        if (request.getImageUrl() != null) {
+            variant.setImageUrl(request.getImageUrl());
+        }
+
+        if (request.getStatus() != null) {
+            CatalogStatus status = CatalogStatus.fromString(request.getStatus());
+            variant.setStatus(status.name());
+            variant.setIsActive(CatalogStatus.toBoolean(status));
+        }
+
+        Variant saved = variantRepository.save(variant);
+        log.info("Updated Variant with ID: {}", saved.getId());
+        return mapToVariantResponseDTO(saved);
+    }
+
+    @Override
+    @Transactional
+    public VariantResponseDTO updateVariantStatus(Long variantId, String status) {
+        if (variantId == null || variantId <= 0) {
+            throw new InvalidCatalogDataException("Variant ID must be a valid positive number");
+        }
+        if (status == null || status.trim().isEmpty()) {
+            throw new InvalidCatalogDataException("Status must not be blank");
+        }
+
+        CatalogStatus catalogStatus = CatalogStatus.fromString(status);
+        Variant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new VariantNotFoundException("Variant not found with ID: " + variantId));
+
+        variant.setStatus(catalogStatus.name());
+        variant.setIsActive(CatalogStatus.toBoolean(catalogStatus));
+        Variant saved = variantRepository.save(variant);
+        log.info("Updated status of Variant ID: {} to {}", saved.getId(), saved.getStatus());
+        return mapToVariantResponseDTO(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteVariant(Long variantId) {
+        if (variantId == null || variantId <= 0) {
+            throw new InvalidCatalogDataException("Variant ID must be a valid positive number");
+        }
+        if (!variantRepository.existsById(variantId)) {
+            throw new VariantNotFoundException("Variant not found with ID: " + variantId);
+        }
+        variantRepository.deleteById(variantId);
+        log.info("Deleted Variant with ID: {}", variantId);
+    }
+
+    // ==========================================
+    // 5. USER & WORKER ACTIVE CATALOG RETRIEVAL
+    // ==========================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryResponseDTO> getActiveCategories() {
+        List<Category> categories = categoryRepository.findByIsActiveOrderByDisplayOrderAscNameAsc(true);
+        return categories.stream()
+                .map(c -> mapToCategoryResponseDTO(c, false))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SubCategoryResponseDTO> getActiveSubCategoriesByCategory(UUID categoryId) {
+        if (categoryId == null) {
+            throw new InvalidCatalogDataException("Category ID must not be null");
+        }
+
+        categoryRepository.findByIdAndIsActiveTrue(categoryId)
+                .orElseThrow(() -> new CategoryNotFoundException("Active Category not found with ID: " + categoryId));
+
+        List<ServiceItem> items = serviceItemRepository.findByCategoryIdAndStatus(categoryId, true);
+        return items.stream()
+                .map(this::mapToSubCategoryResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SubCategoryResponseDTO getActiveSubCategoryById(Long subCategoryId) {
+        if (subCategoryId == null || subCategoryId <= 0) {
+            throw new InvalidCatalogDataException("Sub-Category ID must be a valid positive number");
+        }
+
+        ServiceItem item = serviceItemRepository.findByIdAndIsActiveTrue(subCategoryId)
+                .orElseThrow(() -> new SubCategoryNotFoundException("Active Sub-Category not found with ID: " + subCategoryId));
+
+        if (item.getCategory() == null || !Boolean.TRUE.equals(item.getCategory().getIsActive())) {
+            throw new SubCategoryNotFoundException("Active parent Category not found for Sub-Category ID: " + subCategoryId);
+        }
+
+        return mapToSubCategoryResponseDTO(item);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VariantResponseDTO> getActiveVariantsBySubCategory(Long subCategoryId) {
+        if (subCategoryId == null || subCategoryId <= 0) {
+            throw new InvalidCatalogDataException("Sub-Category ID must be a valid positive number");
+        }
+
+        ServiceItem item = serviceItemRepository.findByIdAndIsActiveTrue(subCategoryId)
+                .orElseThrow(() -> new SubCategoryNotFoundException("Active Sub-Category not found with ID: " + subCategoryId));
+
+        if (item.getCategory() == null || !Boolean.TRUE.equals(item.getCategory().getIsActive())) {
+            throw new SubCategoryNotFoundException("Active parent Category not found for Sub-Category ID: " + subCategoryId);
+        }
+
+        List<Variant> variants = variantRepository.findBySubcategoryIdAndStatus(subCategoryId, true);
+        return variants.stream()
+                .map(this::mapToVariantResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    // ==========================================
+    // HELPER METHODS
+    // ==========================================
+
+    private BigDecimal calculateFinalAmount(BigDecimal basePrice, BigDecimal discount, BigDecimal fallback) {
+        if (basePrice == null) {
+            return BigDecimal.ZERO;
+        }
+        if (discount == null || discount.compareTo(BigDecimal.ZERO) <= 0) {
+            return (fallback != null && fallback.compareTo(BigDecimal.ZERO) > 0) ? fallback : basePrice;
+        }
+        if (discount.compareTo(BigDecimal.valueOf(100)) <= 0) {
+            // Percentage discount
+            BigDecimal discountAmt = basePrice.multiply(discount).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            return basePrice.subtract(discountAmt).max(BigDecimal.ZERO);
+        } else {
+            // Flat discount
+            return basePrice.subtract(discount).max(BigDecimal.ZERO);
+        }
+    }
 
     private ServiceResponseDTO mapToServiceResponseDTO(CatalogServiceEntity entity, boolean includeCategories) {
         int categoriesCount = categoryRepository.countByServiceId(entity.getId());
@@ -602,9 +986,14 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
                 .serviceName(category.getService() != null ? category.getService().getName() : null)
                 .name(category.getName())
                 .description(category.getDescription())
+                .amount(category.getAmount() != null ? category.getAmount() : BigDecimal.ZERO)
+                .discount(category.getDiscount() != null ? category.getDiscount() : BigDecimal.ZERO)
+                .finalAmount(category.getFinalAmount() != null ? category.getFinalAmount() : BigDecimal.ZERO)
                 .imageUrl(category.getIconUrl())
+                .image(category.getIconUrl())
                 .displayOrder(category.getDisplayOrder())
                 .status(category.getStatus())
+                .isActive(category.getIsActive())
                 .subCategoriesCount(subCatsCount)
                 .subCategories(subCats)
                 .createdAt(category.getCreatedAt())
@@ -616,24 +1005,49 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         Category cat = item.getCategory();
         CatalogServiceEntity srv = (cat != null) ? cat.getService() : null;
 
+        int variantsCount = variantRepository.countBySubcategoryId(item.getId());
+
         return SubCategoryResponseDTO.builder()
                 .id(item.getId())
                 .categoryId(cat != null ? cat.getId() : null)
                 .categoryName(cat != null ? cat.getName() : null)
-                .serviceId(srv != null ? srv.getId() : null)
-                .serviceName(srv != null ? srv.getName() : null)
                 .name(item.getName())
                 .description(item.getDescription())
+                .amount(item.getBasePrice())
                 .basePrice(item.getBasePrice())
-                .discountPrice(item.getDiscountPrice())
-                .durationMinutes(item.getDurationMinutes())
-                .inclusions(item.getInclusions())
-                .exclusions(item.getExclusions())
+                .discount(item.getDiscount())
+                .discountPrice(item.getFinalAmount())
+                .finalAmount(item.getFinalAmount())
                 .imageUrl(item.getImageUrl())
-                .ratingAvg(item.getRatingAvg())
+                .image(item.getImageUrl())
                 .status(item.getStatus())
+                .isActive(item.getIsActive())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
+                .build();
+    }
+
+    private VariantResponseDTO mapToVariantResponseDTO(Variant variant) {
+        ServiceItem sub = variant.getSubcategory();
+        Category cat = (sub != null) ? sub.getCategory() : null;
+
+        return VariantResponseDTO.builder()
+                .id(variant.getId())
+                .subcategoryId(sub != null ? sub.getId() : null)
+                .subcategoryName(sub != null ? sub.getName() : null)
+                .categoryId(cat != null ? cat.getId() : null)
+                .categoryName(cat != null ? cat.getName() : null)
+                .name(variant.getName())
+                .description(variant.getDescription())
+                .amount(variant.getAmount())
+                .discount(variant.getDiscount())
+                .finalAmount(variant.getFinalAmount())
+                .imageUrl(variant.getImageUrl())
+                .image(variant.getImageUrl())
+                .status(variant.getStatus())
+                .isActive(variant.getIsActive())
+                .createdAt(variant.getCreatedAt())
+                .updatedAt(variant.getUpdatedAt())
                 .build();
     }
 }

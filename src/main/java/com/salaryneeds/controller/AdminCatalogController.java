@@ -2,21 +2,25 @@ package com.salaryneeds.controller;
 
 import com.salaryneeds.dto.catalog.*;
 import com.salaryneeds.service.CatalogManagementService;
+import com.salaryneeds.service.FileStorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping({"/admin", "/api/v1/admin"})
+@RequestMapping({"/api/admin", "/admin", "/api/v1/admin"})
 @RequiredArgsConstructor
 public class AdminCatalogController {
 
     private final CatalogManagementService catalogManagementService;
+    private final FileStorageService fileStorageService;
 
     // ==========================================
     // 1. SERVICE (TOP LEVEL)
@@ -71,21 +75,67 @@ public class AdminCatalogController {
     }
 
     // ==========================================
-    // 2. CATEGORY (MIDDLE LEVEL UNDER SERVICE)
+    // 2. CATEGORY MODULE
     // ==========================================
 
-    @PostMapping("/services/{serviceId}/categories")
-    public ResponseEntity<CategoryResponseDTO> createCategory(
-            @PathVariable UUID serviceId,
-            @Valid @RequestBody CategoryRequestDTO request
+    @PostMapping(value = {"/categories", "/services/{serviceId}/categories"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CategoryResponseDTO> createCategoryMultipart(
+            @PathVariable(required = false) UUID serviceId,
+            @ModelAttribute CategoryRequestDTO request,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "file", required = false) MultipartFile file
     ) {
-        CategoryResponseDTO response = catalogManagementService.createCategory(serviceId, request);
+        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        if (upload != null && !upload.isEmpty()) {
+            String imageUrl = fileStorageService.store(upload, "categories");
+            request.setImageUrl(imageUrl);
+        }
+        CategoryResponseDTO response;
+        if (serviceId != null) {
+            request.setServiceId(serviceId);
+            response = catalogManagementService.createCategory(serviceId, request);
+        } else {
+            response = catalogManagementService.createCategory(request);
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/services/{serviceId}/categories")
-    public ResponseEntity<List<CategoryResponseDTO>> getCategoriesByService(
-            @PathVariable UUID serviceId,
+    @PostMapping(value = {"/categories", "/services/{serviceId}/categories"})
+    public ResponseEntity<CategoryResponseDTO> createCategory(
+            @PathVariable(required = false) UUID serviceId,
+            @Valid @RequestBody CategoryRequestDTO request
+    ) {
+        CategoryResponseDTO response;
+        if (serviceId != null) {
+            request.setServiceId(serviceId);
+            response = catalogManagementService.createCategory(serviceId, request);
+        } else {
+            response = catalogManagementService.createCategory(request);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping(value = "/categories/{categoryId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CategoryResponseDTO> uploadCategoryImage(
+            @PathVariable UUID categoryId,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "file", required = false) MultipartFile file
+    ) {
+        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        if (upload == null || upload.isEmpty()) {
+            throw new IllegalArgumentException("Image file must not be empty");
+        }
+        String imageUrl = fileStorageService.store(upload, "categories");
+        CategoryRequestDTO updateRequest = CategoryRequestDTO.builder()
+                .imageUrl(imageUrl)
+                .build();
+        CategoryResponseDTO response = catalogManagementService.updateCategory(categoryId, updateRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping({"/categories", "/services/{serviceId}/categories"})
+    public ResponseEntity<List<CategoryResponseDTO>> getCategories(
+            @PathVariable(required = false) UUID serviceId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status
     ) {
@@ -127,34 +177,71 @@ public class AdminCatalogController {
     }
 
     // ==========================================
-    // 3. SUB-CATEGORY (LEAF LEVEL UNDER CATEGORY)
+    // 3. SUBCATEGORY / SERVICE MODULE
     // ==========================================
 
-    @PostMapping("/categories/{categoryId}/sub-categories")
-    public ResponseEntity<SubCategoryResponseDTO> createSubCategory(
-            @PathVariable UUID categoryId,
-            @Valid @RequestBody SubCategoryRequestDTO request
+    @PostMapping(value = {"/subcategories", "/categories/{categoryId}/sub-categories", "/categories/{categoryId}/subcategories"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<SubCategoryResponseDTO> createSubCategoryMultipart(
+            @PathVariable(required = false) UUID categoryId,
+            @ModelAttribute SubCategoryRequestDTO request,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "file", required = false) MultipartFile file
     ) {
-        SubCategoryResponseDTO response = catalogManagementService.createSubCategory(categoryId, request);
+        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        if (upload != null && !upload.isEmpty()) {
+            String imageUrl = fileStorageService.store(upload, "subcategories");
+            request.setImageUrl(imageUrl);
+        }
+        SubCategoryResponseDTO response;
+        if (categoryId != null) {
+            request.setCategoryId(categoryId);
+            response = catalogManagementService.createSubCategory(categoryId, request);
+        } else {
+            response = catalogManagementService.createSubCategory(request);
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/categories/{categoryId}/sub-categories")
-    public ResponseEntity<List<SubCategoryResponseDTO>> getSubCategoriesByCategory(
-            @PathVariable UUID categoryId,
+    @PostMapping({"/subcategories", "/categories/{categoryId}/sub-categories", "/categories/{categoryId}/subcategories"})
+    public ResponseEntity<SubCategoryResponseDTO> createSubCategory(
+            @PathVariable(required = false) UUID categoryId,
+            @Valid @RequestBody SubCategoryRequestDTO request
+    ) {
+        SubCategoryResponseDTO response;
+        if (categoryId != null) {
+            request.setCategoryId(categoryId);
+            response = catalogManagementService.createSubCategory(categoryId, request);
+        } else {
+            response = catalogManagementService.createSubCategory(request);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping({"/subcategories", "/categories/{categoryId}/sub-categories", "/categories/{categoryId}/subcategories"})
+    public ResponseEntity<List<SubCategoryResponseDTO>> getSubCategories(
+            @PathVariable(required = false) UUID categoryId,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String status
     ) {
-        List<SubCategoryResponseDTO> response = catalogManagementService.getSubCategoriesByCategory(categoryId, status);
+        List<SubCategoryResponseDTO> response;
+        if (categoryId != null) {
+            response = catalogManagementService.getSubCategoriesByCategory(categoryId, status);
+        } else {
+            response = catalogManagementService.getAllSubCategories(null, search, status);
+        }
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/sub-categories/{subCategoryId}")
-    public ResponseEntity<SubCategoryResponseDTO> getSubCategoryById(@PathVariable Long subCategoryId) {
-        SubCategoryResponseDTO response = catalogManagementService.getSubCategoryById(subCategoryId);
+    @GetMapping({"/subcategories/{subCategoryId}", "/sub-categories/{subCategoryId}"})
+    public ResponseEntity<SubCategoryResponseDTO> getSubCategoryById(
+            @PathVariable Long subCategoryId,
+            @RequestParam(defaultValue = "true") boolean includeVariants
+    ) {
+        SubCategoryResponseDTO response = catalogManagementService.getSubCategoryById(subCategoryId, includeVariants);
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/sub-categories/{subCategoryId}")
+    @PutMapping({"/subcategories/{subCategoryId}", "/sub-categories/{subCategoryId}"})
     public ResponseEntity<SubCategoryResponseDTO> updateSubCategory(
             @PathVariable Long subCategoryId,
             @RequestBody SubCategoryRequestDTO request
@@ -163,7 +250,7 @@ public class AdminCatalogController {
         return ResponseEntity.ok(response);
     }
 
-    @PatchMapping("/sub-categories/{subCategoryId}/status")
+    @PatchMapping({"/subcategories/{subCategoryId}/status", "/sub-categories/{subCategoryId}/status"})
     public ResponseEntity<SubCategoryResponseDTO> updateSubCategoryStatus(
             @PathVariable Long subCategoryId,
             @Valid @RequestBody StatusUpdateRequestDTO request
@@ -172,9 +259,77 @@ public class AdminCatalogController {
         return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping("/sub-categories/{subCategoryId}")
+    @DeleteMapping({"/subcategories/{subCategoryId}", "/sub-categories/{subCategoryId}"})
     public ResponseEntity<Void> deleteSubCategory(@PathVariable Long subCategoryId) {
         catalogManagementService.deleteSubCategory(subCategoryId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ==========================================
+    // 4. OPTIONAL VARIANT MODULE
+    // ==========================================
+
+    @PostMapping(value = {"/subcategories/{subCategoryId}/variants", "/sub-categories/{subCategoryId}/variants"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<VariantResponseDTO> createVariantMultipart(
+            @PathVariable Long subCategoryId,
+            @ModelAttribute VariantRequestDTO request,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "file", required = false) MultipartFile file
+    ) {
+        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        if (upload != null && !upload.isEmpty()) {
+            String imageUrl = fileStorageService.store(upload, "variants");
+            request.setImageUrl(imageUrl);
+        }
+        VariantResponseDTO response = catalogManagementService.createVariant(subCategoryId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping({"/subcategories/{subCategoryId}/variants", "/sub-categories/{subCategoryId}/variants"})
+    public ResponseEntity<VariantResponseDTO> createVariant(
+            @PathVariable Long subCategoryId,
+            @Valid @RequestBody VariantRequestDTO request
+    ) {
+        VariantResponseDTO response = catalogManagementService.createVariant(subCategoryId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping({"/subcategories/{subCategoryId}/variants", "/sub-categories/{subCategoryId}/variants"})
+    public ResponseEntity<List<VariantResponseDTO>> getVariantsBySubCategory(
+            @PathVariable Long subCategoryId,
+            @RequestParam(required = false) String status
+    ) {
+        List<VariantResponseDTO> response = catalogManagementService.getVariantsBySubCategory(subCategoryId, status);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/variants/{variantId}")
+    public ResponseEntity<VariantResponseDTO> getVariantById(@PathVariable Long variantId) {
+        VariantResponseDTO response = catalogManagementService.getVariantById(variantId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/variants/{variantId}")
+    public ResponseEntity<VariantResponseDTO> updateVariant(
+            @PathVariable Long variantId,
+            @RequestBody VariantRequestDTO request
+    ) {
+        VariantResponseDTO response = catalogManagementService.updateVariant(variantId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/variants/{variantId}/status")
+    public ResponseEntity<VariantResponseDTO> updateVariantStatus(
+            @PathVariable Long variantId,
+            @Valid @RequestBody StatusUpdateRequestDTO request
+    ) {
+        VariantResponseDTO response = catalogManagementService.updateVariantStatus(variantId, request.getStatus());
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/variants/{variantId}")
+    public ResponseEntity<Void> deleteVariant(@PathVariable Long variantId) {
+        catalogManagementService.deleteVariant(variantId);
         return ResponseEntity.noContent().build();
     }
 }

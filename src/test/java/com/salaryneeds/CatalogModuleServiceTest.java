@@ -4,10 +4,12 @@ import com.salaryneeds.dto.catalog.*;
 import com.salaryneeds.entity.CatalogServiceEntity;
 import com.salaryneeds.entity.Category;
 import com.salaryneeds.entity.ServiceItem;
+import com.salaryneeds.entity.Variant;
 import com.salaryneeds.exception.*;
 import com.salaryneeds.repository.CatalogServiceRepository;
 import com.salaryneeds.repository.CategoryRepository;
 import com.salaryneeds.repository.ServiceItemRepository;
+import com.salaryneeds.repository.VariantRepository;
 import com.salaryneeds.service.CatalogManagementServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +37,9 @@ public class CatalogModuleServiceTest {
 
     @Mock
     private ServiceItemRepository serviceItemRepository;
+
+    @Mock
+    private VariantRepository variantRepository;
 
     @InjectMocks
     private CatalogManagementServiceImpl catalogManagementService;
@@ -72,10 +77,11 @@ public class CatalogModuleServiceTest {
         subCat1 = ServiceItem.builder()
                 .id(101L)
                 .category(category1)
-                .name("bathroom deep cleaning")
-                .description("Intensive bathroom scrubbing")
-                .basePrice(BigDecimal.valueOf(500))
-                .durationMinutes(60)
+                .name("kitchen cleaning")
+                .description("Intensive kitchen scrubbing")
+                .basePrice(BigDecimal.valueOf(1500))
+                .discount(BigDecimal.valueOf(10))
+                .finalAmount(BigDecimal.valueOf(1350))
                 .isActive(true)
                 .build();
     }
@@ -125,26 +131,28 @@ public class CatalogModuleServiceTest {
     // --- Level 2: Category Tests ---
 
     @Test
-    @DisplayName("3. Create valid Category under Service")
-    void testCreateValidCategory() {
-        CategoryRequestDTO request = CategoryRequestDTO.builder()
-                .name("AC Repair")
-                .description("Air conditioning care")
+    @DisplayName("3. Create Category stores name strictly in LOWERCASE regardless of input case")
+    void testCategoryNameStoredInLowerCase() {
+        CategoryRequestDTO requestUpper = CategoryRequestDTO.builder()
+                .name("  HOME CLEANING SERVICES  ")
+                .description("Complete residential cleaning")
+                .imageUrl("http://example.com/clean.jpg")
+                .status("ACTIVE")
                 .build();
 
-        when(catalogServiceRepository.findById(serviceId1)).thenReturn(Optional.of(topService1));
-        when(categoryRepository.existsByServiceIdAndName(serviceId1, "ac repair")).thenReturn(false);
+        when(categoryRepository.existsByName("home cleaning services")).thenReturn(false);
         when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> {
             Category c = inv.getArgument(0);
             c.setId(UUID.randomUUID());
             return c;
         });
 
-        CategoryResponseDTO response = catalogManagementService.createCategory(serviceId1, request);
+        CategoryResponseDTO response = catalogManagementService.createCategory(requestUpper);
 
         assertNotNull(response);
-        assertEquals("ac repair", response.getName());
-        assertEquals(serviceId1, response.getServiceId());
+        assertEquals("home cleaning services", response.getName(), "Category name must be stored in lower case");
+        assertEquals("ACTIVE", response.getStatus());
+        verify(categoryRepository).save(argThat(cat -> "home cleaning services".equals(cat.getName())));
     }
 
     @Test
@@ -162,56 +170,121 @@ public class CatalogModuleServiceTest {
         );
     }
 
-    // --- Level 3: Sub-Category Tests ---
+    // --- Level 3: Sub-Category / Service Tests ---
 
     @Test
-    @DisplayName("5. Create valid Sub-Category under Category")
-    void testCreateValidSubCategory() {
+    @DisplayName("5. Create Subcategory calculates final amount on backend and lowercases name")
+    void testCreateValidSubCategoryWithFinalAmountCalculation() {
         SubCategoryRequestDTO request = SubCategoryRequestDTO.builder()
-                .name("Kitchen Deep Cleaning")
-                .basePrice(BigDecimal.valueOf(800))
+                .categoryId(categoryId1)
+                .name("  KITCHEN CLEANING  ")
+                .description("Complete kitchen deep cleaning")
+                .amount(BigDecimal.valueOf(1500))
+                .discount(BigDecimal.valueOf(10)) // 10% discount -> finalAmount = 1350
+                .imageUrl("http://example.com/kitchen.jpg")
+                .status("ACTIVE")
                 .build();
 
         when(categoryRepository.findById(categoryId1)).thenReturn(Optional.of(category1));
-        when(serviceItemRepository.existsByCategoryIdAndName(categoryId1, "kitchen deep cleaning")).thenReturn(false);
+        when(serviceItemRepository.existsByCategoryIdAndName(categoryId1, "kitchen cleaning")).thenReturn(false);
         when(serviceItemRepository.save(any(ServiceItem.class))).thenAnswer(inv -> {
             ServiceItem item = inv.getArgument(0);
-            item.setId(201L);
+            item.setId(101L);
             return item;
         });
 
-        SubCategoryResponseDTO response = catalogManagementService.createSubCategory(categoryId1, request);
+        SubCategoryResponseDTO response = catalogManagementService.createSubCategory(request);
 
         assertNotNull(response);
-        assertEquals("kitchen deep cleaning", response.getName());
+        assertEquals("kitchen cleaning", response.getName(), "Subcategory name must be lowercased");
+        assertEquals(0, BigDecimal.valueOf(1350).compareTo(response.getFinalAmount()), "Final amount must be backend calculated: 1500 - 10% = 1350");
         assertEquals(categoryId1, response.getCategoryId());
     }
 
     @Test
-    @DisplayName("6. Create duplicate Sub-Category under same Category throws 409")
+    @DisplayName("6. Create Subcategory with non-existing Category throws 404")
+    void testCreateSubCategoryNonExistingCategoryThrows404() {
+        UUID nonExistingCatId = UUID.randomUUID();
+        SubCategoryRequestDTO request = SubCategoryRequestDTO.builder()
+                .categoryId(nonExistingCatId)
+                .name("Plumbing Repair")
+                .amount(BigDecimal.valueOf(500))
+                .build();
+
+        when(categoryRepository.findById(nonExistingCatId)).thenReturn(Optional.empty());
+
+        assertThrows(CategoryNotFoundException.class, () ->
+                catalogManagementService.createSubCategory(request)
+        );
+    }
+
+    @Test
+    @DisplayName("7. Create duplicate Sub-Category under same Category throws 409")
     void testCreateDuplicateSubCategory() {
         SubCategoryRequestDTO request = SubCategoryRequestDTO.builder()
-                .name("Bathroom Deep Cleaning")
+                .name("Kitchen Cleaning")
                 .build();
 
         when(categoryRepository.findById(categoryId1)).thenReturn(Optional.of(category1));
-        when(serviceItemRepository.existsByCategoryIdAndName(categoryId1, "bathroom deep cleaning")).thenReturn(true);
+        when(serviceItemRepository.existsByCategoryIdAndName(categoryId1, "kitchen cleaning")).thenReturn(true);
 
         assertThrows(DuplicateSubCategoryException.class, () ->
                 catalogManagementService.createSubCategory(categoryId1, request)
         );
     }
 
+    // --- Level 4: Optional Variant Tests ---
+
     @Test
-    @DisplayName("7. Get Sub-Categories by Category with filtering")
-    void testGetSubCategoriesByCategory() {
-        when(categoryRepository.existsById(categoryId1)).thenReturn(true);
-        when(serviceItemRepository.findByCategoryIdAndStatus(categoryId1, true))
-                .thenReturn(Collections.singletonList(subCat1));
+    @DisplayName("8. Create Optional Variant calculates backend final price and lowercases name")
+    void testCreateValidVariant() {
+        VariantRequestDTO request = VariantRequestDTO.builder()
+                .name("  1.5 TON  ")
+                .description("1.5 Ton AC repair")
+                .amount(BigDecimal.valueOf(2000))
+                .discount(BigDecimal.valueOf(10)) // 10% discount -> 1800
+                .status("ACTIVE")
+                .build();
 
-        List<SubCategoryResponseDTO> results = catalogManagementService.getSubCategoriesByCategory(categoryId1, "ACTIVE");
+        when(serviceItemRepository.findById(101L)).thenReturn(Optional.of(subCat1));
+        when(variantRepository.existsBySubcategoryIdAndName(101L, "1.5 ton")).thenReturn(false);
+        when(variantRepository.save(any(Variant.class))).thenAnswer(inv -> {
+            Variant v = inv.getArgument(0);
+            v.setId(501L);
+            return v;
+        });
 
-        assertEquals(1, results.size());
-        assertEquals("bathroom deep cleaning", results.get(0).getName());
+        VariantResponseDTO response = catalogManagementService.createVariant(101L, request);
+
+        assertNotNull(response);
+        assertEquals("1.5 ton", response.getName(), "Variant name must be stored in lower case");
+        assertEquals(0, BigDecimal.valueOf(1800).compareTo(response.getFinalAmount()), "Final price must be 1800 (2000 - 10%)");
+        assertEquals(101L, response.getSubcategoryId());
+    }
+
+    @Test
+    @DisplayName("9. Create Variant under non-existing Subcategory throws 404")
+    void testCreateVariantNonExistingSubcategoryThrows404() {
+        VariantRequestDTO request = VariantRequestDTO.builder()
+                .name("2 Ton")
+                .amount(BigDecimal.valueOf(2500))
+                .build();
+
+        when(serviceItemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(SubCategoryNotFoundException.class, () ->
+                catalogManagementService.createVariant(999L, request)
+        );
+    }
+
+    @Test
+    @DisplayName("10. Variants are optional: Subcategory exists independently")
+    void testSubcategoryWithZeroVariants() {
+        when(serviceItemRepository.findById(101L)).thenReturn(Optional.of(subCat1));
+
+        SubCategoryResponseDTO response = catalogManagementService.getSubCategoryById(101L, true);
+
+        assertNotNull(response);
+        assertEquals("kitchen cleaning", response.getName());
     }
 }

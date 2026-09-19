@@ -61,6 +61,9 @@ class AllApisEdgeCaseIntegrationTest {
     private CatalogManagementService catalogManagementService;
 
     @Mock
+    private FileStorageService fileStorageService;
+
+    @Mock
     private WorkerDiscoveryService workerDiscoveryService;
 
     @InjectMocks
