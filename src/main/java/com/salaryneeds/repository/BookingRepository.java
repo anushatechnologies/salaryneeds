@@ -28,4 +28,17 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             String slotId,
             Collection<BookingStatus> statuses
     );
+
+    boolean existsByWorkerIdAndStatusIn(String workerId, Collection<BookingStatus> statuses);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE Booking b SET b.workerId = :workerId, b.status = :newStatus, b.acceptedAt = :now " +
+           "WHERE b.id = :bookingId AND (b.workerId IS NULL OR b.workerId = '') AND b.status IN :assignableStatuses")
+    int assignWorkerAtomically(
+            @org.springframework.data.repository.query.Param("bookingId") Long bookingId,
+            @org.springframework.data.repository.query.Param("workerId") String workerId,
+            @org.springframework.data.repository.query.Param("newStatus") BookingStatus newStatus,
+            @org.springframework.data.repository.query.Param("assignableStatuses") Collection<BookingStatus> assignableStatuses,
+            @org.springframework.data.repository.query.Param("now") java.time.LocalDateTime now
+    );
 }

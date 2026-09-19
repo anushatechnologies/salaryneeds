@@ -29,6 +29,9 @@ public class BookingResponseDTO {
     private BigDecimal payableAmount;
     private String addressId;
     private String addressSummary;
+    private Double customerLat;
+    private Double customerLng;
+    private String navigationUrl;
     private String slotId;
     private String scheduledTime;
     private String couponCode;
@@ -36,6 +39,9 @@ public class BookingResponseDTO {
     private String startPin;
     private Boolean startPinVerified;
     private LocalDateTime pinExpiresAt;
+    private LocalDateTime acceptedAt;
+    private LocalDateTime enRouteAt;
+    private LocalDateTime arrivedAt;
     private String cancellationReason;
     private BigDecimal cancellationFee;
     private BigDecimal refundAmount;

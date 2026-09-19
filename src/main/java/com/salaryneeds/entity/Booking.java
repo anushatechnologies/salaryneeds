@@ -66,6 +66,12 @@ public class Booking {
     @Column(name = "address_summary", length = 500)
     private String addressSummary;
 
+    @Column(name = "customer_lat")
+    private Double customerLat;
+
+    @Column(name = "customer_lng")
+    private Double customerLng;
+
     @Column(name = "slot_id", length = 50)
     private String slotId;
 
@@ -108,6 +114,15 @@ public class Booking {
 
     @Column(name = "pin_expires_at")
     private LocalDateTime pinExpiresAt;
+
+    @Column(name = "accepted_at")
+    private LocalDateTime acceptedAt;
+
+    @Column(name = "en_route_at")
+    private LocalDateTime enRouteAt;
+
+    @Column(name = "arrived_at")
+    private LocalDateTime arrivedAt;
 
     @Column(name = "service_started_at")
     private LocalDateTime serviceStartedAt;

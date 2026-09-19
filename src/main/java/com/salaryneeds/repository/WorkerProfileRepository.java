@@ -51,4 +51,14 @@ public interface WorkerProfileRepository extends JpaRepository<WorkerProfile, UU
             @Param("categoryId") UUID categoryId,
             Pageable pageable
     );
+
+    @Query("SELECT w FROM WorkerProfile w WHERE " +
+           "w.verified = TRUE AND w.dutyOnline = TRUE AND w.accountStatus = 'ACTIVE' AND " +
+           "(:categoryId IS NULL OR w.category.id = :categoryId OR " +
+           "(:serviceName IS NOT NULL AND (LOWER(w.service) LIKE LOWER(CONCAT('%', :serviceName, '%')) OR " +
+           "LOWER(w.skills) LIKE LOWER(CONCAT('%', :serviceName, '%')))))")
+    List<WorkerProfile> findEligibleCandidateWorkers(
+            @Param("categoryId") UUID categoryId,
+            @Param("serviceName") String serviceName
+    );
 }

@@ -103,4 +103,88 @@ public class BookingController {
     ) {
         return ResponseEntity.ok(bookingService.verifyPin(bookingId, request.getPin()));
     }
+
+    // Worker Action: Start Travel towards customer location
+    @PostMapping("/{bookingId}/start-travel")
+    public ResponseEntity<WorkerActionResponseDTO> startTravel(
+            @PathVariable Long bookingId,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader,
+            @RequestParam(value = "workerId", required = false) String workerIdParam
+    ) {
+        String effectiveWorkerId = (workerIdHeader != null && !workerIdHeader.isBlank()) ? workerIdHeader.trim() : workerIdParam;
+        if (effectiveWorkerId == null || effectiveWorkerId.isBlank()) {
+            throw new IllegalArgumentException("Worker ID is required in X-Worker-Id header or workerId query param");
+        }
+        return ResponseEntity.ok(bookingService.startTravel(bookingId, effectiveWorkerId));
+    }
+
+    // Worker Action: Arrived at customer location
+    @PostMapping("/{bookingId}/arrived")
+    public ResponseEntity<WorkerActionResponseDTO> workerArrived(
+            @PathVariable Long bookingId,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader,
+            @RequestParam(value = "workerId", required = false) String workerIdParam
+    ) {
+        String effectiveWorkerId = (workerIdHeader != null && !workerIdHeader.isBlank()) ? workerIdHeader.trim() : workerIdParam;
+        if (effectiveWorkerId == null || effectiveWorkerId.isBlank()) {
+            throw new IllegalArgumentException("Worker ID is required in X-Worker-Id header or workerId query param");
+        }
+        return ResponseEntity.ok(bookingService.workerArrived(bookingId, effectiveWorkerId));
+    }
+
+    // Worker Action: Verify customer 4-digit start PIN to transition to IN_PROGRESS
+    @PostMapping("/{bookingId}/verify-start-pin")
+    public ResponseEntity<WorkerActionResponseDTO> verifyStartPin(
+            @PathVariable Long bookingId,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader,
+            @RequestParam(value = "workerId", required = false) String workerIdParam,
+            @Valid @RequestBody VerifyPinRequestDTO request
+    ) {
+        String effectiveWorkerId = (workerIdHeader != null && !workerIdHeader.isBlank()) ? workerIdHeader.trim() : workerIdParam;
+        if (effectiveWorkerId == null || effectiveWorkerId.isBlank()) {
+            throw new IllegalArgumentException("Worker ID is required in X-Worker-Id header or workerId query param");
+        }
+        return ResponseEntity.ok(bookingService.verifyStartPin(bookingId, effectiveWorkerId, request.getPin()));
+    }
+
+    // Worker Action: Complete service
+    @PostMapping("/{bookingId}/complete")
+    public ResponseEntity<WorkerActionResponseDTO> completeService(
+            @PathVariable Long bookingId,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader,
+            @RequestParam(value = "workerId", required = false) String workerIdParam
+    ) {
+        String effectiveWorkerId = (workerIdHeader != null && !workerIdHeader.isBlank()) ? workerIdHeader.trim() : workerIdParam;
+        if (effectiveWorkerId == null || effectiveWorkerId.isBlank()) {
+            throw new IllegalArgumentException("Worker ID is required in X-Worker-Id header or workerId query param");
+        }
+        return ResponseEntity.ok(bookingService.completeService(bookingId, effectiveWorkerId));
+    }
+
+    // Telemetry: Worker sends real-time GPS coordinates during trip
+    @PostMapping("/{bookingId}/worker-location")
+    public ResponseEntity<WorkerLocationResponseDTO> updateWorkerLocation(
+            @PathVariable Long bookingId,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader,
+            @RequestParam(value = "workerId", required = false) String workerIdParam,
+            @Valid @RequestBody WorkerLocationRequestDTO request
+    ) {
+        String effectiveWorkerId = (workerIdHeader != null && !workerIdHeader.isBlank()) ? workerIdHeader.trim() : workerIdParam;
+        if (effectiveWorkerId == null || effectiveWorkerId.isBlank()) {
+            throw new IllegalArgumentException("Worker ID is required in X-Worker-Id header or workerId query param");
+        }
+        return ResponseEntity.ok(bookingService.updateWorkerLocation(bookingId, effectiveWorkerId, request));
+    }
+
+    // Telemetry: Customer / Web / Mobile fetches latest known worker location
+    @GetMapping("/{bookingId}/worker-location")
+    public ResponseEntity<WorkerLocationResponseDTO> getLatestWorkerLocation(
+            @PathVariable Long bookingId
+    ) {
+        WorkerLocationResponseDTO location = bookingService.getLatestWorkerLocation(bookingId);
+        if (location == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(location);
+    }
 }

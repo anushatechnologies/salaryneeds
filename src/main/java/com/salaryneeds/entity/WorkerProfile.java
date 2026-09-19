@@ -80,6 +80,16 @@ public class WorkerProfile {
     @Column(name = "last_seen_at")
     private LocalDateTime lastSeenAt;
 
+    @Column(name = "service_area_lat")
+    private Double serviceAreaLat;
+
+    @Column(name = "service_area_lng")
+    private Double serviceAreaLng;
+
+    @Column(name = "service_radius_km")
+    @Builder.Default
+    private Double serviceRadiusKm = 15.0;
+
     @Column(name = "email_verified", nullable = false)
     @Builder.Default
     private Boolean emailVerified = false;

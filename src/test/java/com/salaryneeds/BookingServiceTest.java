@@ -95,7 +95,6 @@ class BookingServiceTest {
                 .build();
 
         when(customerRepository.existsById(any(UUID.class))).thenReturn(true);
-        when(passwordEncoder.encode(any())).thenReturn("hashedPin");
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> {
             Booking b = invocation.getArgument(0);
             b.setId(101L);
@@ -107,7 +106,7 @@ class BookingServiceTest {
         assertNotNull(response);
         assertEquals(101L, response.getId());
         assertEquals(BookingStatus.PENDING, response.getStatus());
-        // PIN must be masked on creation
+        // PIN must be masked / null on creation
         assertNull(response.getStartPin());
         verify(bookingRepository, times(1)).save(any(Booking.class));
     }
@@ -133,7 +132,6 @@ class BookingServiceTest {
 
         when(customerRepository.existsById(any(UUID.class))).thenReturn(true);
         when(couponService.validateCoupon(eq("WELCOME50"), any(), any(), any())).thenReturn(couponResponse);
-        when(passwordEncoder.encode(any())).thenReturn("hashedPin");
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         BookingResponseDTO response = bookingService.createBooking(request, customerId);
@@ -145,29 +143,29 @@ class BookingServiceTest {
     }
 
     @Test
-    @DisplayName("Security Rule: Start PIN is masked when status is PENDING or CONFIRMED")
+    @DisplayName("Security Rule: Start PIN is null when status is PENDING (not yet accepted by worker)")
     void testGetBooking_PinMaskedWhenPending() {
-        sampleBooking.setStatus(BookingStatus.CONFIRMED);
+        sampleBooking.setStatus(BookingStatus.PENDING);
         when(bookingRepository.findById(101L)).thenReturn(Optional.of(sampleBooking));
 
         BookingResponseDTO response = bookingService.getBookingById(101L, customerId);
 
         assertNotNull(response);
-        assertEquals(BookingStatus.CONFIRMED, response.getStatus());
-        assertNull(response.getStartPin(), "PIN must be null/masked when status is not ARRIVED");
+        assertEquals(BookingStatus.PENDING, response.getStatus());
+        assertNull(response.getStartPin(), "PIN must be null/masked when status is PENDING");
     }
 
     @Test
-    @DisplayName("Security Rule: Start PIN is REVEALED when status is ARRIVED")
-    void testGetBooking_PinRevealedWhenArrived() {
-        sampleBooking.setStatus(BookingStatus.ARRIVED);
+    @DisplayName("Security Rule: Start PIN is REVEALED when worker accepts booking (status ACCEPTED)")
+    void testGetBooking_PinRevealedWhenAccepted() {
+        sampleBooking.setStatus(BookingStatus.ACCEPTED);
         when(bookingRepository.findById(101L)).thenReturn(Optional.of(sampleBooking));
 
         BookingResponseDTO response = bookingService.getBookingById(101L, customerId);
 
         assertNotNull(response);
-        assertEquals(BookingStatus.ARRIVED, response.getStatus());
-        assertEquals("4589", response.getStartPin(), "PIN must be revealed when worker is ARRIVED");
+        assertEquals(BookingStatus.ACCEPTED, response.getStatus());
+        assertEquals("4589", response.getStartPin(), "PIN must be revealed when worker accepts booking");
     }
 
     @Test
