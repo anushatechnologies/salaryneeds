@@ -36,6 +36,20 @@ public class CatalogService {
             cMap.put("description", cat.getDescription());
 
             List<SubCategory> subs = subCategoryRepository.findByCategoryIdAndIsActiveTrue(cat.getId());
+            if (subs.isEmpty()) {
+                SubCategory defaultSub = SubCategory.builder()
+                        .id("sub-" + cat.getId() + "-default")
+                        .categoryId(cat.getId())
+                        .name(cat.getName() + " Standard Service")
+                        .code("sub-" + cat.getCode() + "-def")
+                        .iconName(cat.getIconName())
+                        .basePrice(BigDecimal.valueOf(399.00))
+                        .estimatedDuration("1 Hour")
+                        .isActive(true)
+                        .build();
+                subCategoryRepository.save(defaultSub);
+                subs = List.of(defaultSub);
+            }
             List<Map<String, Object>> subList = new ArrayList<>();
             for (SubCategory s : subs) {
                 Map<String, Object> sMap = new LinkedHashMap<>();
