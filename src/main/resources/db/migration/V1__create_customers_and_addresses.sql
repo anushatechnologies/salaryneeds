@@ -1,7 +1,7 @@
--- V1: Create Customers and Addresses Tables (PostgreSQL)
+-- V1: Create Customers and Addresses Tables
 
 CREATE TABLE IF NOT EXISTS CUSTOMERS (
-    id UUID PRIMARY KEY,
+    id BINARY(16) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(254) NOT NULL UNIQUE,
     phone VARCHAR(20) NOT NULL UNIQUE,
@@ -11,25 +11,25 @@ CREATE TABLE IF NOT EXISTS CUSTOMERS (
     phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
     account_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS ADDRESSES (
-    id UUID PRIMARY KEY,
-    customer_id UUID NOT NULL,
+    id BINARY(16) PRIMARY KEY,
+    customer_id BINARY(16) NOT NULL,
     label VARCHAR(50) DEFAULT 'Home',
     address_line VARCHAR(255) NOT NULL,
     house VARCHAR(100),
     street VARCHAR(150),
     city VARCHAR(100) NOT NULL,
     pincode VARCHAR(10) NOT NULL,
-    lat DOUBLE PRECISION,
-    lng DOUBLE PRECISION,
+    lat DOUBLE,
+    lng DOUBLE,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_addresses_customer FOREIGN KEY (customer_id) REFERENCES CUSTOMERS(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_addresses_customer_id ON ADDRESSES(customer_id);
-CREATE INDEX IF NOT EXISTS idx_addresses_is_default ON ADDRESSES(is_default);
+CREATE INDEX idx_addresses_customer_id ON ADDRESSES(customer_id);
+CREATE INDEX idx_addresses_is_default ON ADDRESSES(is_default);

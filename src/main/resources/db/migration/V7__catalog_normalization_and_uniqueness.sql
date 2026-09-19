@@ -1,4 +1,4 @@
--- V7: Lowercase names and unique constraints for Sub-Category duplicate prevention (PostgreSQL)
+-- V7: Lowercase names and unique constraints for Service and Sub-Category duplicate prevention
 
 ALTER TABLE CATEGORIES DROP COLUMN IF EXISTS normalized_name;
 ALTER TABLE SERVICES DROP COLUMN IF EXISTS normalized_name;
