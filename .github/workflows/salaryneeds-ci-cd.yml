@@ -71,39 +71,45 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Fallback in case scp placed the jar inside a target/ subfolder
-            if [ -f "/opt/salaryneeds/target/salaryneeds-0.0.1-SNAPSHOT.jar" ]; then
-              sudo mv /opt/salaryneeds/target/salaryneeds-0.0.1-SNAPSHOT.jar /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+            # Locate deployed JAR anywhere under /opt/salaryneeds or /home/ec2-user
+            FOUND_JAR=$(find /opt/salaryneeds /home/ec2-user -name "salaryneeds*.jar" 2>/dev/null | head -n 1)
+            if [ -n "$FOUND_JAR" ] && [ "$FOUND_JAR" != "/opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar" ]; then
+              echo "Found JAR at $FOUND_JAR, moving to /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar"
+              sudo mv -f "$FOUND_JAR" /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
             fi
 
             echo "Checking deployed JAR..."
-            ls -lh /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+            ls -lh /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar || true
 
-            echo "Setting ownership..."
-            sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
-            sudo chmod 755 /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
-
-            echo "Checking system Java version..."
-            java -version 2>&1 || /usr/bin/java -version 2>&1 || true
-
-            echo "Checking systemd service config..."
-            cat /etc/systemd/system/salaryneeds.service || true
+            echo "Setting ownership and permissions..."
+            sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar || true
+            sudo chmod 755 /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar || true
 
             echo "Restarting SalaryNeeds service..."
             sudo systemctl daemon-reload
             sudo systemctl restart salaryneeds
 
-            echo "Waiting for application to start..."
-            sleep 25
+            echo "Polling application health on port 8080 (up to 120s)..."
+            SUCCESS=0
+            for i in {1..24}; do
+              if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1 || curl -sf http://localhost:8080/api/catalog/categories > /dev/null 2>&1; then
+                echo "Application is UP and responding! (verified on attempt $i)"
+                SUCCESS=1
+                break
+              fi
+              echo "Waiting for Spring Boot to complete startup... (attempt $i/24, sleeping 5s)"
+              sleep 5
+            done
 
             echo "Checking service status..."
             sudo systemctl status salaryneeds -l --no-pager || true
 
-            echo "Checking application journal logs..."
-            sudo journalctl -u salaryneeds -n 50 --no-pager || true
+            echo "Checking recent application logs..."
+            sudo journalctl -u salaryneeds -n 60 --no-pager || true
 
-            echo "Checking port 8080..."
-            sudo ss -lntp | grep 8080 || true
+            if [ $SUCCESS -eq 0 ]; then
+              echo "ERROR: Application did not become healthy within 120 seconds!"
+              exit 1
+            fi
 
-            echo "Checking health..."
-            curl -f http://localhost:8080/actuator/health || curl -f http://localhost:8080/api/catalog/categories
+            echo "Deployment SUCCESSFUL! SalaryNeeds application is healthy."
