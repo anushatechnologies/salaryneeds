@@ -6,6 +6,7 @@ import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Booking;
 import com.salaryneeds.entity.BookingOffer;
 import com.salaryneeds.entity.WorkerProfile;
+import com.salaryneeds.entity.enums.AccountStatus;
 import com.salaryneeds.entity.enums.BookingOfferStatus;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.exception.BookingAlreadyAssignedException;
@@ -176,7 +177,7 @@ class WorkerMatchingAndExecutionTest {
                 .name("Ravi Kumar")
                 .verified(true)
                 .dutyOnline(true)
-                .accountStatus("ACTIVE")
+                .accountStatus(AccountStatus.ACTIVE)
                 .build();
 
         when(bookingOfferRepository.findByIdAndWorkerId(1L, workerId)).thenReturn(Optional.of(offer));
@@ -223,7 +224,7 @@ class WorkerMatchingAndExecutionTest {
                 .name("Ravi Kumar")
                 .verified(true)
                 .dutyOnline(true)
-                .accountStatus("ACTIVE")
+                .accountStatus(AccountStatus.ACTIVE)
                 .build();
 
         when(bookingOfferRepository.findByIdAndWorkerId(2L, workerId)).thenReturn(Optional.of(offer));

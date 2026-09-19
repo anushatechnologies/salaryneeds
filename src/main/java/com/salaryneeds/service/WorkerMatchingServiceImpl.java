@@ -53,13 +53,7 @@ public class WorkerMatchingServiceImpl implements WorkerMatchingService {
         Double customerLng = booking.getCustomerLng();
 
         // 1. Resolve Category UUID if present
-        UUID categoryUuid = null;
-        if (booking.getCategoryId() != null && !booking.getCategoryId().isBlank()) {
-            try {
-                categoryUuid = UUID.fromString(booking.getCategoryId().trim());
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
+        UUID categoryUuid = com.salaryneeds.util.UuidUtil.parseUuid(booking.getCategoryId());
 
         // 2. Fetch eligible candidate workers (approved, online, matching category or service name)
         List<WorkerProfile> candidates = workerProfileRepository.findEligibleCandidateWorkers(categoryUuid, booking.getServiceName());

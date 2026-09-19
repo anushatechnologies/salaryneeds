@@ -33,6 +33,12 @@ public class Category {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "code", length = 50)
+    private String code;
+
+    @Column(name = "icon_name", length = 50)
+    private String iconName;
+
     @Column(name = "description", length = 500)
     private String description;
 

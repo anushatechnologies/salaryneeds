@@ -74,25 +74,6 @@ public class WorkerDiscoveryServiceImpl implements WorkerDiscoveryService {
     }
 
     private WorkerProfileDTO mapToDTO(WorkerProfile worker) {
-        return WorkerProfileDTO.builder()
-                .id(worker.getId())
-                .name(worker.getName())
-                .email(worker.getEmail())
-                .phone(worker.getPhone())
-                .categoryId(worker.getCategory() != null ? worker.getCategory().getId() : null)
-                .categoryName(worker.getCategory() != null ? worker.getCategory().getName() : null)
-                .service(worker.getService())
-                .skills(worker.getSkills())
-                .experienceYears(worker.getExperienceYears())
-                .pincode(worker.getPincode())
-                .verified(worker.getVerified())
-                .ratingAvg(worker.getRatingAvg())
-                .completedJobsCount(worker.getCompletedJobsCount())
-                .dutyOnline(worker.getDutyOnline())
-                .lastLat(worker.getLastLat())
-                .lastLng(worker.getLastLng())
-                .lastSeenAt(worker.getLastSeenAt())
-                .accountStatus(worker.getAccountStatus())
-                .build();
+        return WorkerProfileDTO.fromEntity(worker);
     }
 }

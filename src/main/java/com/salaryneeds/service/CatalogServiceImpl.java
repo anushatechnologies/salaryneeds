@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -96,5 +97,13 @@ public class CatalogServiceImpl implements CatalogService {
                 .isActive(item.getIsActive())
                 .createdAt(item.getCreatedAt())
                 .build();
+    }
+
+    @Override
+    public Map<String, Object> getCategories() {
+        List<CategoryDTO> categories = getAllCategories();
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("categories", categories);
+        return response;
     }
 }

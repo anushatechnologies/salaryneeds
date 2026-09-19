@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+
 import java.util.UUID;
 
 public interface CategoryRepository extends JpaRepository<Category, UUID> {
@@ -43,4 +44,5 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
            "(:search IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "ORDER BY c.displayOrder ASC, c.name ASC")
     List<Category> searchCategories(@Param("serviceId") UUID serviceId, @Param("search") String search, @Param("isActive") Boolean isActive);
+    List<Category> findByIsActiveTrueOrderByDisplayOrderAsc();
 }

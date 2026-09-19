@@ -1,6 +1,7 @@
 package com.salaryneeds.repository;
 
 import com.salaryneeds.entity.WorkerProfile;
+import com.salaryneeds.entity.enums.AccountStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -25,13 +26,18 @@ public interface WorkerProfileRepository extends JpaRepository<WorkerProfile, UU
 
     boolean existsByEmail(String email);
 
+    List<WorkerProfile> findByDutyOnlineTrue();
+
+    @Query("SELECT w FROM WorkerProfile w WHERE w.dutyOnline = TRUE AND w.category.id = :categoryId")
+    List<WorkerProfile> findByDutyOnlineTrueAndCategoryId(@Param("categoryId") UUID categoryId);
+
     @Query("SELECT w FROM WorkerProfile w WHERE " +
            "(:categoryId IS NULL OR w.category.id = :categoryId) AND " +
            "(:service IS NULL OR LOWER(w.service) LIKE LOWER(CONCAT('%', :service, '%'))) AND " +
            "(:pincode IS NULL OR w.pincode = :pincode) AND " +
            "(:minRating IS NULL OR w.ratingAvg >= :minRating) AND " +
            "(:dutyOnline IS NULL OR w.dutyOnline = :dutyOnline) AND " +
-           "(w.accountStatus = 'ACTIVE')")
+           "(w.accountStatus = com.salaryneeds.entity.enums.AccountStatus.ACTIVE)")
     Page<WorkerProfile> searchWorkers(
             @Param("categoryId") UUID categoryId,
             @Param("service") String service,
@@ -44,7 +50,7 @@ public interface WorkerProfileRepository extends JpaRepository<WorkerProfile, UU
     @Query("SELECT w FROM WorkerProfile w WHERE " +
            "w.pincode = :pincode AND " +
            "(:categoryId IS NULL OR w.category.id = :categoryId) AND " +
-           "w.dutyOnline = TRUE AND w.accountStatus = 'ACTIVE' " +
+           "w.dutyOnline = TRUE AND w.accountStatus = com.salaryneeds.entity.enums.AccountStatus.ACTIVE " +
            "ORDER BY w.ratingAvg DESC, w.completedJobsCount DESC")
     List<WorkerProfile> findRecommendedWorkers(
             @Param("pincode") String pincode,
@@ -53,7 +59,7 @@ public interface WorkerProfileRepository extends JpaRepository<WorkerProfile, UU
     );
 
     @Query("SELECT w FROM WorkerProfile w WHERE " +
-           "w.verified = TRUE AND w.dutyOnline = TRUE AND w.accountStatus = 'ACTIVE' AND " +
+           "w.verified = TRUE AND w.dutyOnline = TRUE AND w.accountStatus = com.salaryneeds.entity.enums.AccountStatus.ACTIVE AND " +
            "(:categoryId IS NULL OR w.category.id = :categoryId OR " +
            "(:serviceName IS NOT NULL AND (LOWER(w.service) LIKE LOWER(CONCAT('%', :serviceName, '%')) OR " +
            "LOWER(w.skills) LIKE LOWER(CONCAT('%', :serviceName, '%')))))")

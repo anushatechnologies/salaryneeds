@@ -73,6 +73,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- H2 Database for local development/testing without external DB -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <!-- Flyway Core -->
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -96,6 +102,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+
 
         <!-- AWS S3 -->
         <dependency>
@@ -170,6 +177,7 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
+                            <version>1.18.38</version>
                         </path>
 
                     </annotationProcessorPaths>

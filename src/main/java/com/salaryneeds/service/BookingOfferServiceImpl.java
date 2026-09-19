@@ -93,7 +93,7 @@ public class BookingOfferServiceImpl implements BookingOfferService {
             if (!Boolean.TRUE.equals(worker.getVerified())) {
                 throw new InvalidBookingStateException("Worker profile is not yet approved/verified");
             }
-            if (!Boolean.TRUE.equals(worker.getDutyOnline()) || !"ACTIVE".equalsIgnoreCase(worker.getAccountStatus())) {
+            if (!Boolean.TRUE.equals(worker.getDutyOnline()) || worker.getAccountStatus() != com.salaryneeds.entity.enums.AccountStatus.ACTIVE) {
                 throw new InvalidBookingStateException("Worker is currently offline or inactive");
             }
         } catch (IllegalArgumentException ignored) {
