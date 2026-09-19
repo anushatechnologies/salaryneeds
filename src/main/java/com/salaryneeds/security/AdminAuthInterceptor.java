@@ -15,7 +15,7 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI();
 
         // Only enforce for admin endpoints
-        if (path.startsWith("/admin") || path.startsWith("/api/v1/admin")) {
+        if (path.startsWith("/admin") || path.startsWith("/api/v1/admin") || path.startsWith("/api/admin")) {
             String role = request.getHeader("X-Role");
             String adminRole = request.getHeader("X-Admin-Role");
             String authHeader = request.getHeader("Authorization");

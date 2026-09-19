@@ -53,10 +53,10 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
-        <!-- MySQL Driver -->
+        <!-- PostgreSQL Driver -->
         <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
@@ -66,10 +66,10 @@
             <artifactId>flyway-core</artifactId>
         </dependency>
 
-        <!-- Flyway MySQL Support -->
+        <!-- Flyway PostgreSQL Support -->
         <dependency>
             <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-mysql</artifactId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
         <!-- Spring Boot Actuator -->

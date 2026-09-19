@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -16,11 +15,13 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class CategoryResponseDTO {
+public class VariantResponseDTO {
 
-    private UUID id;
-    private UUID serviceId;
-    private String serviceName;
+    private Long id;
+    private Long subcategoryId;
+    private String subcategoryName;
+    private UUID categoryId;
+    private String categoryName;
     private String name;
     private String description;
     private BigDecimal amount;
@@ -28,11 +29,8 @@ public class CategoryResponseDTO {
     private BigDecimal finalAmount;
     private String imageUrl;
     private String image;
-    private Integer displayOrder;
     private String status;
     private Boolean isActive;
-    private Integer subCategoriesCount;
-    private List<SubCategoryResponseDTO> subCategories;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

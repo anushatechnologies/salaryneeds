@@ -13,29 +13,30 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
-@Table(name = "CATEGORIES")
+@Table(name = "VARIANTS", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_variants_subcategory_name", columnNames = {"subcategory_id", "name"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Category {
+public class Variant {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "service_id")
-    private CatalogServiceEntity service;
+    @JoinColumn(name = "subcategory_id", nullable = false)
+    private ServiceItem subcategory;
 
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "description", length = 500)
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "amount", nullable = false, precision = 10, scale = 2)
@@ -50,12 +51,12 @@ public class Category {
     @Builder.Default
     private BigDecimal finalAmount = BigDecimal.ZERO;
 
-    @Column(name = "icon_url")
-    private String iconUrl;
+    @Column(name = "image_url")
+    private String imageUrl;
 
-    @Column(name = "display_order")
+    @Column(name = "status", nullable = false)
     @Builder.Default
-    private Integer displayOrder = 0;
+    private String status = "ACTIVE";
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
@@ -69,24 +70,33 @@ public class Category {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public String getImageUrl() {
-        return this.iconUrl;
+    public String getImage() {
+        return this.imageUrl;
     }
 
-    public void setImageUrl(String imageUrl) {
-        this.iconUrl = imageUrl;
-    }
-
-    public String getStatus() {
-        return (this.isActive != null && this.isActive) ? "ACTIVE" : "INACTIVE";
+    public void setImage(String image) {
+        this.imageUrl = image;
     }
 
     public void setStatus(String status) {
-        if ("INACTIVE".equalsIgnoreCase(status)) {
+        if (status == null || status.trim().isEmpty()) {
+            this.status = "ACTIVE";
+            this.isActive = true;
+            return;
+        }
+        String upper = status.trim().toUpperCase();
+        if ("INACTIVE".equalsIgnoreCase(upper)) {
+            this.status = "INACTIVE";
             this.isActive = false;
         } else {
+            this.status = "ACTIVE";
             this.isActive = true;
         }
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = (isActive != null) ? isActive : true;
+        this.status = this.isActive ? "ACTIVE" : "INACTIVE";
     }
 
     public void calculateFinalAmount() {
@@ -96,11 +106,11 @@ public class Category {
         if (this.discount == null || this.discount.compareTo(BigDecimal.ZERO) <= 0) {
             this.finalAmount = this.amount;
         } else if (this.discount.compareTo(BigDecimal.valueOf(100)) <= 0) {
-            // Percentage discount: finalAmount = amount - (amount * discount / 100)
+            // Treat as percentage: finalAmount = amount - (amount * discount / 100)
             BigDecimal discountAmt = this.amount.multiply(this.discount).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             this.finalAmount = this.amount.subtract(discountAmt).max(BigDecimal.ZERO);
         } else {
-            // Flat discount
+            // Flat discount if > 100
             this.finalAmount = this.amount.subtract(this.discount).max(BigDecimal.ZERO);
         }
     }
@@ -111,11 +121,13 @@ public class Category {
         if (this.name != null) {
             this.name = CatalogNameNormalizer.toLowerCaseNormalized(this.name);
         }
-        if (this.isActive == null) {
+        if (this.status != null) {
+            setStatus(this.status);
+        } else if (this.isActive != null) {
+            setIsActive(this.isActive);
+        } else {
+            this.status = "ACTIVE";
             this.isActive = true;
-        }
-        if (this.displayOrder == null) {
-            this.displayOrder = 0;
         }
         calculateFinalAmount();
     }
