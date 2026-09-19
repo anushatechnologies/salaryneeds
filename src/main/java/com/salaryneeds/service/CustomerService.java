@@ -1,6 +1,8 @@
 package com.salaryneeds.service;
 
 import com.salaryneeds.dto.CustomerCreateRequestDTO;
+import com.salaryneeds.dto.CustomerLoginRequestDTO;
+import com.salaryneeds.dto.CustomerLoginResponseDTO;
 import com.salaryneeds.dto.CustomerResponseDTO;
 import com.salaryneeds.dto.CustomerUpdateRequestDTO;
 import com.salaryneeds.dto.PageResponseDTO;
@@ -22,6 +24,8 @@ public interface CustomerService {
     PageResponseDTO<CustomerResponseDTO> getCustomersPaginated(Pageable pageable);
 
     CustomerResponseDTO updateCustomer(UUID customerId, CustomerUpdateRequestDTO request);
+
+    CustomerLoginResponseDTO login(CustomerLoginRequestDTO request);
 
     void deactivateCustomer(UUID customerId);
 

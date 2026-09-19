@@ -1,12 +1,11 @@
 package com.salaryneeds;
 
-import com.salaryneeds.dto.CustomerCreateRequestDTO;
-import com.salaryneeds.dto.CustomerResponseDTO;
-import com.salaryneeds.dto.CustomerUpdateRequestDTO;
+import com.salaryneeds.dto.*;
 import com.salaryneeds.entity.Customer;
 import com.salaryneeds.exception.CustomerNotFoundException;
 import com.salaryneeds.exception.DuplicateEmailException;
 import com.salaryneeds.exception.DuplicatePhoneException;
+import com.salaryneeds.exception.UnauthorizedException;
 import com.salaryneeds.repository.CustomerRepository;
 import com.salaryneeds.service.CustomerServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -163,5 +162,72 @@ class CustomerServiceTest {
 
         assertEquals("INACTIVE", sampleCustomer.getAccountStatus());
         verify(customerRepository, times(1)).save(sampleCustomer);
+    }
+
+    @Test
+    @DisplayName("Customer Login - Success with correct email and password")
+    void testLogin_Success() {
+        CustomerLoginRequestDTO request = CustomerLoginRequestDTO.builder()
+                .email("pavan@example.com")
+                .password("Password@123")
+                .build();
+
+        sampleCustomer.setPasswordHash("$2a$10$someHashedPassword");
+        when(customerRepository.findByEmail("pavan@example.com")).thenReturn(Optional.of(sampleCustomer));
+        when(passwordEncoder.matches("Password@123", "$2a$10$someHashedPassword")).thenReturn(true);
+
+        CustomerLoginResponseDTO response = customerService.login(request);
+
+        assertNotNull(response);
+        assertTrue(response.isSuccess());
+        assertEquals("Login successful", response.getMessage());
+        assertNotNull(response.getCustomer());
+        assertEquals("Pavan Kumar", response.getCustomer().getName());
+        assertEquals("pavan@example.com", response.getCustomer().getEmail());
+    }
+
+    @Test
+    @DisplayName("Customer Login - Email not found throws UnauthorizedException")
+    void testLogin_EmailNotFound() {
+        CustomerLoginRequestDTO request = CustomerLoginRequestDTO.builder()
+                .email("unknown@example.com")
+                .password("Password@123")
+                .build();
+
+        when(customerRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> customerService.login(request));
+        assertEquals("Invalid email or password", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Customer Login - Wrong password throws UnauthorizedException")
+    void testLogin_WrongPassword() {
+        CustomerLoginRequestDTO request = CustomerLoginRequestDTO.builder()
+                .email("pavan@example.com")
+                .password("WrongPassword")
+                .build();
+
+        sampleCustomer.setPasswordHash("$2a$10$someHashedPassword");
+        when(customerRepository.findByEmail("pavan@example.com")).thenReturn(Optional.of(sampleCustomer));
+        when(passwordEncoder.matches("WrongPassword", "$2a$10$someHashedPassword")).thenReturn(false);
+
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> customerService.login(request));
+        assertEquals("Invalid email or password", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Customer Login - Inactive account throws UnauthorizedException")
+    void testLogin_InactiveAccount() {
+        CustomerLoginRequestDTO request = CustomerLoginRequestDTO.builder()
+                .email("pavan@example.com")
+                .password("Password@123")
+                .build();
+
+        sampleCustomer.setAccountStatus("INACTIVE");
+        when(customerRepository.findByEmail("pavan@example.com")).thenReturn(Optional.of(sampleCustomer));
+
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> customerService.login(request));
+        assertTrue(exception.getMessage().contains("inactive"));
     }
 }
