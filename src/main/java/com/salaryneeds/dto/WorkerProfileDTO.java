@@ -24,66 +24,86 @@ public class WorkerProfileDTO {
     private String email;
     private String phone;
 
-    @JsonProperty("category_id")
+    @com.fasterxml.jackson.annotation.JsonAlias({"category_id", "categoryId"})
     private UUID categoryId;
 
-    @JsonProperty("category_name")
+    @com.fasterxml.jackson.annotation.JsonAlias({"category_name", "categoryName"})
     private String categoryName;
 
     private String service;
     private String trade;
     private String skills;
 
-    @JsonProperty("skills_list")
+    @com.fasterxml.jackson.annotation.JsonAlias({"skills_list", "skillsList"})
     private List<String> skillsList;
 
-    @JsonProperty("experience_years")
+    @com.fasterxml.jackson.annotation.JsonAlias({"experience_years", "experienceYears"})
     private Integer experienceYears;
 
     private String pincode;
     private String city;
     private String address;
 
-    @JsonProperty("service_areas")
+    @com.fasterxml.jackson.annotation.JsonAlias({"service_areas", "serviceAreas"})
     private List<String> serviceAreas;
 
     private Boolean verified;
 
-    @JsonProperty("duty_online")
+    @com.fasterxml.jackson.annotation.JsonAlias({"duty_online", "dutyOnline"})
     private Boolean dutyOnline;
 
-    @JsonProperty("rating_avg")
+    @com.fasterxml.jackson.annotation.JsonAlias({"rating_avg", "ratingAvg"})
     private BigDecimal ratingAvg;
 
-    @JsonProperty("completed_jobs_count")
+    @com.fasterxml.jackson.annotation.JsonAlias({"completed_jobs_count", "completedJobsCount"})
     private Integer completedJobsCount;
 
-    @JsonProperty("total_reviews")
+    @com.fasterxml.jackson.annotation.JsonAlias({"total_reviews", "totalReviews"})
     private Integer totalReviews;
 
-    @JsonProperty("acceptance_rate")
+    @com.fasterxml.jackson.annotation.JsonAlias({"acceptance_rate", "acceptanceRate"})
     private Double acceptanceRate;
 
-    @JsonProperty("completion_rate")
+    @com.fasterxml.jackson.annotation.JsonAlias({"completion_rate", "completionRate"})
     private Double completionRate;
 
     private String tier;
 
-    @JsonProperty("last_lat")
+    @com.fasterxml.jackson.annotation.JsonAlias({"last_lat", "lastLat"})
     private Double lastLat;
 
-    @JsonProperty("last_lng")
+    @com.fasterxml.jackson.annotation.JsonAlias({"last_lng", "lastLng"})
     private Double lastLng;
 
-    @JsonProperty("last_seen_at")
+    @com.fasterxml.jackson.annotation.JsonAlias({"last_seen_at", "lastSeenAt"})
     private LocalDateTime lastSeenAt;
 
-    @JsonProperty("account_status")
+    @com.fasterxml.jackson.annotation.JsonAlias({"account_status", "accountStatus"})
     private String accountStatus;
 
-    @JsonProperty("created_at")
+    @com.fasterxml.jackson.annotation.JsonAlias({"created_at", "createdAt"})
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private LocalDateTime createdAt;
+
+    @JsonProperty("rating_avg")
+    public BigDecimal getRating_avg() {
+        return ratingAvg;
+    }
+
+    @JsonProperty("duty_online")
+    public Boolean getDuty_online() {
+        return dutyOnline;
+    }
+
+    @JsonProperty("completed_jobs_count")
+    public Integer getCompleted_jobs_count() {
+        return completedJobsCount;
+    }
+
+    @JsonProperty("category_id")
+    public UUID getCategory_id() {
+        return categoryId;
+    }
 
     public static WorkerProfileDTO fromEntity(WorkerProfile p) {
         if (p == null) return null;
