@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salaryneeds-backend
+  namespace: salaryneeds
+  labels:
+    app: salaryneeds-backend
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: salaryneeds-backend
+  template:
+    metadata:
+      labels:
+        app: salaryneeds-backend
+    spec:
+      containers:
+        - name: salaryneeds-backend
+          image: ghcr.io/anushatechnologies/salaryneeds-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: salaryneeds-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: salaryneeds-secret
+                  key: DB_PASSWORD
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: salaryneeds-backend-service
+  namespace: salaryneeds
+spec:
+  type: ClusterIP
+  selector:
+    app: salaryneeds-backend
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
