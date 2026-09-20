@@ -41,6 +41,8 @@ public class DutyLocationService {
                         .id(finalUuid)
                         .name("Worker " + finalUuid.toString().substring(0, 8))
                         .phone("98765" + Math.abs(finalUuid.hashCode()) % 100000)
+                        .email("worker" + finalUuid.toString().substring(0, 8) + "@salaryneeds.com")
+                        .passwordHash("$2a$10$defaultPasswordHashSample1234567890abcdef")
                         .service("Technician")
                         .dutyOnline(false)
                         .build()

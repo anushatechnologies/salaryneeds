@@ -48,6 +48,10 @@ public class ServiceItem {
     @Column(name = "discount_price", precision = 10, scale = 2)
     private BigDecimal discountPrice;
 
+    @Column(name = "discount", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal discount = BigDecimal.ZERO;
+
     @Column(name = "final_amount", precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal finalAmount = BigDecimal.ZERO;

@@ -67,4 +67,13 @@ public interface WorkerProfileRepository extends JpaRepository<WorkerProfile, UU
             @Param("categoryId") UUID categoryId,
             @Param("serviceName") String serviceName
     );
+
+    // Admin service methods
+    Page<WorkerProfile> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    long countByAccountStatus(AccountStatus accountStatus);
+
+    long countByVerified(boolean verified);
+
+    Page<WorkerProfile> findAllByVerifiedOrderByCreatedAtDesc(boolean verified, Pageable pageable);
 }

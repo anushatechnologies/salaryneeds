@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -850,13 +851,17 @@ class SalaryNeedsApplicationTests {
     @Test
     @DisplayName("Duty & Telemetry: Prepaid Balance Barrier, Heartbeat Ping")
     void testDutyEnforcementAndLocationHeartbeat() throws Exception {
-        String workerId = "w-duty-barrier-" + System.currentTimeMillis();
+        UUID workerUuid = UUID.randomUUID();
+        String workerId = workerUuid.toString();
 
         // Create profile & wallet with zero prepaid balance (< 100)
+        String uniquePhone = "99" + (System.currentTimeMillis() % 100000000L);
         com.salaryneeds.entity.WorkerProfile profile = com.salaryneeds.entity.WorkerProfile.builder()
-                .id(workerId)
+                .id(workerUuid)
                 .name("Barrier Test Worker")
-                .phone("9988776655")
+                .email("barrier" + workerUuid + "@test.com")
+                .passwordHash("$2a$10$sampleHashedPassword1234567890abcdefghijklm")
+                .phone(uniquePhone)
                 .dutyOnline(false)
                 .build();
         workerProfileRepository.save(profile);

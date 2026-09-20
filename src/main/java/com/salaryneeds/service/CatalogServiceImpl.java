@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,6 +33,15 @@ public class CatalogServiceImpl implements CatalogService {
     private final CategoryRepository categoryRepository;
     private final ServiceItemRepository serviceItemRepository;
     private final VariantRepository variantRepository;
+
+    @Override
+    public Map<String, Object> getCategories() {
+        List<CategoryDTO> categories = getAllCategories();
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "SUCCESS");
+        response.put("categories", categories);
+        return response;
+    }
 
     @Override
     public List<CategoryDTO> getAllCategories() {
@@ -130,7 +140,11 @@ public class CatalogServiceImpl implements CatalogService {
     // ==========================================
 
     private CategoryDTO mapCategoryToDTO(Category category) {
-        int servicesCount = serviceItemRepository.countByCategoryIdAndIsActiveTrue(category.getId());
+        List<ServiceItemDTO> services = serviceItemRepository.findByCategoryIdAndIsActiveTrue(category.getId())
+                .stream()
+                .map(this::mapServiceItemToDTO)
+                .collect(Collectors.toList());
+        int servicesCount = services.size();
         return CategoryDTO.builder()
                 .id(category.getId())
                 .name(category.getName())
@@ -142,6 +156,8 @@ public class CatalogServiceImpl implements CatalogService {
                 .displayOrder(category.getDisplayOrder())
                 .isActive(category.getIsActive())
                 .servicesCount(servicesCount)
+                .services(services)
+                .subCategories(services)
                 .createdAt(category.getCreatedAt())
                 .build();
     }
@@ -162,7 +178,11 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     private CategoryResponseDTO mapToCategoryResponseDTO(Category category) {
-        int subCatsCount = serviceItemRepository.countByCategoryIdAndIsActiveTrue(category.getId());
+        List<SubCategoryResponseDTO> subCats = serviceItemRepository.findByCategoryIdAndIsActiveTrue(category.getId())
+                .stream()
+                .map(this::mapToSubCategoryResponseDTO)
+                .collect(Collectors.toList());
+        int subCatsCount = subCats.size();
         return CategoryResponseDTO.builder()
                 .id(category.getId())
                 .serviceId(category.getService() != null ? category.getService().getId() : null)
@@ -178,6 +198,7 @@ public class CatalogServiceImpl implements CatalogService {
                 .status(category.getStatus())
                 .isActive(category.getIsActive())
                 .subCategoriesCount(subCatsCount)
+                .subCategories(subCats)
                 .createdAt(category.getCreatedAt())
                 .updatedAt(category.getUpdatedAt())
                 .build();

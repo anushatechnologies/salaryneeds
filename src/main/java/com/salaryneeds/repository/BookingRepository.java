@@ -54,4 +54,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT b FROM Booking b WHERE b.workerId = :workerId AND (b.scheduledDate = :scheduledDate OR CAST(b.bookingDate AS string) = :scheduledDate) ORDER BY b.id ASC")
     List<Booking> findWorkerScheduleForDate(@Param("workerId") String workerId, @Param("scheduledDate") String scheduledDate);
+
+    // Admin service methods
+    Page<Booking> findAllByStatusOrderByCreatedAtDesc(BookingStatus status, Pageable pageable);
+
+    Page<Booking> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    long countByStatus(BookingStatus status);
+
+    @Query("SELECT COALESCE(SUM(b.totalAmount), 0) FROM Booking b WHERE b.status = com.salaryneeds.entity.enums.BookingStatus.COMPLETED")
+    java.math.BigDecimal sumTotalRevenue();
 }

@@ -33,8 +33,8 @@ public class JwtUtil {
     private final long      expirationMs;
 
     public JwtUtil(
-            @Value("${admin.jwt.secret}") String secret,
-            @Value("${admin.jwt.expiration-ms}") long expirationMs) {
+            @Value("${admin.jwt.secret:default-secret-key-for-admin-jwt-must-be-at-least-256-bits-long-1234567890}") String secret,
+            @Value("${admin.jwt.expiration-ms:86400000}") long expirationMs) {
         this.secretKey    = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }

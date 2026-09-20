@@ -5,6 +5,7 @@ import com.salaryneeds.dto.admin.AccountStatusUpdateRequestDTO;
 import com.salaryneeds.dto.admin.AdminWorkerResponseDTO;
 import com.salaryneeds.dto.admin.DocumentVerificationRequestDTO;
 import com.salaryneeds.entity.WorkerProfile;
+import com.salaryneeds.entity.enums.AccountStatus;
 import com.salaryneeds.exception.WorkerNotFoundException;
 import com.salaryneeds.repository.WorkerProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +45,7 @@ public class AdminWorkerService {
                                                       UUID adminId) {
         WorkerProfile w = workerRepo.findById(workerId)
                 .orElseThrow(() -> new WorkerNotFoundException("Worker not found: " + workerId));
-        w.setAccountStatus(req.getAccountStatus());
+        w.setAccountStatus(AccountStatus.valueOf(req.getAccountStatus()));
         workerRepo.save(w);
 
         auditLogService.log(adminId,
@@ -94,7 +95,7 @@ public class AdminWorkerService {
                 .ratingAvg(w.getRatingAvg())
                 .completedJobsCount(w.getCompletedJobsCount())
                 .dutyOnline(w.getDutyOnline())
-                .accountStatus(w.getAccountStatus())
+                .accountStatus(w.getAccountStatus() != null ? w.getAccountStatus().name() : null)
                 .createdAt(w.getCreatedAt())
                 .build();
     }

@@ -1,6 +1,7 @@
 package com.salaryneeds.service.admin;
 
 import com.salaryneeds.dto.admin.DashboardStatsDTO;
+import com.salaryneeds.entity.enums.AccountStatus;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.entity.enums.ReviewStatus;
 import com.salaryneeds.repository.BookingRepository;
@@ -26,7 +27,7 @@ public class AdminDashboardService {
     public DashboardStatsDTO getStats() {
 
         long totalWorkers       = workerRepo.count();
-        long activeWorkers      = workerRepo.countByAccountStatus("ACTIVE");
+        long activeWorkers      = workerRepo.countByAccountStatus(AccountStatus.ACTIVE);
         long totalCustomers     = customerRepo.count();
         long totalBookings      = bookingRepo.count();
         long pendingBookings    = bookingRepo.countByStatus(BookingStatus.PENDING);

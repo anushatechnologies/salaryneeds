@@ -147,6 +147,7 @@ public class CouponControllerTest {
         when(couponService.createCoupon(any(CouponDTO.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/admin/coupons")
+                        .header("X-Role", "ADMIN")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
@@ -172,6 +173,7 @@ public class CouponControllerTest {
         when(couponService.getAllCoupons(eq(true), eq("CODE1"), any(Pageable.class))).thenReturn(pageResponse);
 
         mockMvc.perform(get("/api/admin/coupons")
+                        .header("X-Role", "ADMIN")
                         .param("active", "true")
                         .param("code", "CODE1")
                         .param("page", "0")
@@ -188,7 +190,8 @@ public class CouponControllerTest {
         CouponDTO response = CouponDTO.builder().id(1L).code("CODE1").active(true).build();
         when(couponService.getCouponById(1L)).thenReturn(response);
 
-        mockMvc.perform(get("/api/admin/coupons/1"))
+        mockMvc.perform(get("/api/admin/coupons/1")
+                        .header("X-Role", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.code").value("CODE1"));
@@ -204,6 +207,7 @@ public class CouponControllerTest {
         when(couponService.patchCoupon(eq(1L), any(CouponDTO.class))).thenReturn(response);
 
         mockMvc.perform(patch("/api/admin/coupons/1")
+                        .header("X-Role", "ADMIN")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(patchDto)))
                 .andExpect(status().isOk())
@@ -242,7 +246,8 @@ public class CouponControllerTest {
 
         when(couponService.getCouponRedemptions(eq(1L), any(Pageable.class))).thenReturn(response);
 
-        mockMvc.perform(get("/api/admin/coupons/1/redemptions"))
+        mockMvc.perform(get("/api/admin/coupons/1/redemptions")
+                        .header("X-Role", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.coupon_id").value(1))
                 .andExpect(jsonPath("$.coupon_code").value("CODE1"))

@@ -33,6 +33,7 @@ public class DutyLocationController {
             @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
         Map<String, Object> response = new java.util.HashMap<>();
         response.put("success", true);
+        response.put("message", "Location heartbeat recorded");
         response.put("recorded_at", java.time.LocalDateTime.now().toString());
         return ResponseEntity.ok(response);
     }

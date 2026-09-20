@@ -24,7 +24,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil         jwtUtil;
 
-    @Value("${admin.jwt.expiration-ms}")
+    @Value("${admin.jwt.expiration-ms:86400000}")
     private long expirationMs;
 
     // ── Login ─────────────────────────────────────────────────────────────

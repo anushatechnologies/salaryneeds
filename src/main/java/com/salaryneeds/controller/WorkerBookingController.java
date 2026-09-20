@@ -22,7 +22,7 @@ public class WorkerBookingController {
     @org.springframework.beans.factory.annotation.Autowired
     private com.salaryneeds.repository.WorkerWalletRepository workerWalletRepository;
 
-    @GetMapping({"/nearby-leads", "/leads"})
+    @GetMapping({"/nearby-leads", "/leads", "/radar"})
     public ResponseEntity<Map<String, Object>> getNearbyLeads(
             @RequestParam(value = "lat", defaultValue = "17.4933") Double lat,
             @RequestParam(value = "lng", defaultValue = "78.3995") Double lng,

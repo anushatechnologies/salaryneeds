@@ -25,5 +25,9 @@ public class CategoryDTO {
     private Integer displayOrder;
     private Boolean isActive;
     private Integer servicesCount;
+    @Builder.Default
+    private java.util.List<ServiceItemDTO> subCategories = new java.util.ArrayList<>();
+    @Builder.Default
+    private java.util.List<ServiceItemDTO> services = new java.util.ArrayList<>();
     private LocalDateTime createdAt;
 }
