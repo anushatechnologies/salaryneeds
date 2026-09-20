@@ -13,19 +13,23 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping({"/api/user", "/user"})
 @RequiredArgsConstructor
 public class UserCatalogController {
 
     private final CatalogManagementService catalogManagementService;
 
-    @GetMapping("/categories")
+    @GetMapping({"/api/user/categories", "/user/categories", "/api/categories/active"})
     public ResponseEntity<ApiResponse<List<CategoryResponseDTO>>> getCategories() {
         List<CategoryResponseDTO> categories = catalogManagementService.getActiveCategories();
         return ResponseEntity.ok(ApiResponse.success("Active categories retrieved successfully", categories));
     }
 
-    @GetMapping("/categories/{categoryId}/subcategories")
+    @GetMapping({
+            "/api/categories/{categoryId}/subcategories",
+            "/categories/{categoryId}/subcategories",
+            "/api/user/categories/{categoryId}/subcategories",
+            "/user/categories/{categoryId}/subcategories"
+    })
     public ResponseEntity<ApiResponse<List<SubCategoryResponseDTO>>> getSubcategoriesByCategory(
             @PathVariable UUID categoryId
     ) {
@@ -33,7 +37,12 @@ public class UserCatalogController {
         return ResponseEntity.ok(ApiResponse.success("Active subcategories retrieved successfully", subcategories));
     }
 
-    @GetMapping("/subcategories/{subcategoryId}")
+    @GetMapping({
+            "/api/subcategories/{subcategoryId}",
+            "/subcategories/{subcategoryId}",
+            "/api/user/subcategories/{subcategoryId}",
+            "/user/subcategories/{subcategoryId}"
+    })
     public ResponseEntity<ApiResponse<SubCategoryResponseDTO>> getSubcategoryById(
             @PathVariable Long subcategoryId
     ) {
@@ -41,7 +50,12 @@ public class UserCatalogController {
         return ResponseEntity.ok(ApiResponse.success("Active subcategory retrieved successfully", subcategory));
     }
 
-    @GetMapping("/subcategories/{subcategoryId}/variants")
+    @GetMapping({
+            "/api/subcategories/{subcategoryId}/variants",
+            "/subcategories/{subcategoryId}/variants",
+            "/api/user/subcategories/{subcategoryId}/variants",
+            "/user/subcategories/{subcategoryId}/variants"
+    })
     public ResponseEntity<ApiResponse<List<VariantResponseDTO>>> getVariantsBySubcategory(
             @PathVariable Long subcategoryId
     ) {
