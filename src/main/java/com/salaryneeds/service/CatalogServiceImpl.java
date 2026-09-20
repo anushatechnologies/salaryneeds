@@ -7,6 +7,7 @@ import com.salaryneeds.dto.catalog.SubCategoryResponseDTO;
 import com.salaryneeds.dto.catalog.VariantResponseDTO;
 import com.salaryneeds.entity.Category;
 import com.salaryneeds.entity.ServiceItem;
+import com.salaryneeds.entity.Variant;
 import com.salaryneeds.exception.CategoryNotFoundException;
 import com.salaryneeds.exception.ServiceNotFoundException;
 import com.salaryneeds.exception.SubCategoryNotFoundException;

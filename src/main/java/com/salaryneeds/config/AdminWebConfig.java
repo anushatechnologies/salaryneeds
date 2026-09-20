@@ -1,5 +1,6 @@
 package com.salaryneeds.config;
 
+import com.salaryneeds.security.AdminAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
