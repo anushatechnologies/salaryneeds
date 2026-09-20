@@ -220,34 +220,34 @@ public class UserAndWorkerCatalogTest {
     }
 
     @Test
-    @DisplayName("Role authorization checks across Admin, User, and Worker")
+    @DisplayName("Open access checks across Admin, User, and Worker without JWT restrictions")
     void testRoleAuthorization() throws Exception {
-        // User cannot access Admin APIs
+        // User can access Admin APIs without JWT restrictions
         mockMvc.perform(get("/api/admin/services")
                         .header("X-Role", "USER"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
 
-        // Worker cannot access Admin APIs
+        // Worker can access Admin APIs
         mockMvc.perform(get("/api/admin/services")
                         .header("X-Role", "WORKER"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
 
-        // User cannot access Worker APIs
+        // User can access Worker APIs
         mockMvc.perform(get("/api/worker/categories")
                         .header("X-Role", "USER"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
 
-        // Worker cannot access User APIs
+        // Worker can access User APIs
         mockMvc.perform(get("/api/user/categories")
                         .header("X-Role", "WORKER"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
 
-        // Unauthenticated request to User API -> 401
+        // Unauthenticated request to User API -> 200 OK
         mockMvc.perform(get("/api/user/categories"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk());
 
-        // Unauthenticated request to Worker API -> 401
+        // Unauthenticated request to Worker API -> 200 OK
         mockMvc.perform(get("/api/worker/categories"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk());
     }
 }

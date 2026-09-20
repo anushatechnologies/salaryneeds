@@ -70,32 +70,44 @@ public class CatalogModuleControllerTest {
     }
 
     @Test
-    @DisplayName("22. Unauthorized user (USER role) cannot access Admin Catalog APIs -> 403 Forbidden")
+    @DisplayName("22. Open access allows service creation without JWT restriction before Firebase integration")
     void testUnauthorizedUserForbidden() throws Exception {
         ServiceRequestDTO request = ServiceRequestDTO.builder()
                 .name("Home Services")
                 .build();
 
+        ServiceResponseDTO response = ServiceResponseDTO.builder()
+                .id(java.util.UUID.randomUUID())
+                .name("Home Services")
+                .build();
+
+        when(catalogManagementService.createService(any())).thenReturn(response);
+
         mockMvc.perform(post("/admin/services")
                         .header("X-Role", "USER")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error").value("Forbidden"));
+                .andExpect(status().isCreated());
     }
 
     @Test
-    @DisplayName("23. Unauthenticated request to Admin API is rejected -> 401 Unauthorized")
+    @DisplayName("23. Open access allows unauthenticated request without JWT restriction before Firebase integration")
     void testUnauthenticatedRequestRejected() throws Exception {
         ServiceRequestDTO request = ServiceRequestDTO.builder()
                 .name("Home Services")
                 .build();
 
+        ServiceResponseDTO response = ServiceResponseDTO.builder()
+                .id(java.util.UUID.randomUUID())
+                .name("Home Services")
+                .build();
+
+        when(catalogManagementService.createService(any())).thenReturn(response);
+
         mockMvc.perform(post("/admin/services")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Unauthorized"));
+                .andExpect(status().isCreated());
     }
 
     @Test
