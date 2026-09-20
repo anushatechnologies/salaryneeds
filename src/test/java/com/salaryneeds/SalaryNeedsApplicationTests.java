@@ -44,6 +44,8 @@ class SalaryNeedsApplicationTests {
     private com.salaryneeds.repository.BookingRepository bookingRepository;
     @Autowired
     private com.salaryneeds.repository.WorkerWalletRepository workerWalletRepository;
+    @Autowired
+    private com.salaryneeds.service.NightlySettlementScheduler nightlySettlementScheduler;
 
     @BeforeEach
     void cleanDb() {
@@ -715,4 +717,360 @@ class SalaryNeedsApplicationTests {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error", is("REVIEW_NOT_FOUND")));
     }
+
+    // =========================================================================
+    // 8. JOB PORTAL & APPLICATION FLOW
+    // =========================================================================
+    @Test
+    @DisplayName("Job Portal: Feed, Category Filter, Apply to Job, Applied Tab Filter")
+    void testJobPortalFeedAndApplications() throws Exception {
+        String testWorkerId = "w-job-test-" + System.currentTimeMillis();
+
+        // 1. Fetch Job Feed (GET /worker/jobs/feed)
+        MvcResult feedResult = mockMvc.perform(get("/worker/jobs/feed")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jobs", not(empty())))
+                .andReturn();
+
+        String jobId = objectMapper.readTree(feedResult.getResponse().getContentAsString())
+                .path("jobs").get(0).path("id").asText();
+
+        // 2. Filter by Category
+        mockMvc.perform(get("/worker/jobs/feed?category=Electrical")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jobs", notNullValue()));
+
+        // 3. Check APPLIED tab before applying (should be empty for this new worker)
+        mockMvc.perform(get("/worker/jobs/feed?tab=APPLIED")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jobs", hasSize(0)));
+
+        // 4. Apply to Job (POST /worker/jobs/{id}/apply)
+        mockMvc.perform(post("/worker/jobs/" + jobId + "/apply")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.message", containsString("Application submitted")));
+
+        // 5. Re-apply to the same Job (idempotent application)
+        mockMvc.perform(post("/worker/jobs/" + jobId + "/apply")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        // 6. Check APPLIED tab after applying (should contain the applied job)
+        mockMvc.perform(get("/worker/jobs/feed?tab=APPLIED")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jobs", hasSize(1)))
+                .andExpect(jsonPath("$.jobs[0].id", is(jobId)))
+                .andExpect(jsonPath("$.jobs[0].isApplied", is(true)));
+    }
+
+    // =========================================================================
+    // 9. NOTIFICATIONS & READ STATUS FLOW
+    // =========================================================================
+    @Test
+    @DisplayName("Notifications: Fetch In-App Alerts & Mark as Read")
+    void testNotificationsAndReadStatus() throws Exception {
+        String testWorkerId = "w-notif-test-" + System.currentTimeMillis();
+
+        // 1. Fetch notifications (GET /worker/notifications)
+        MvcResult notifResult = mockMvc.perform(get("/worker/notifications")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notifications", not(empty())))
+                .andReturn();
+
+        String notifId = objectMapper.readTree(notifResult.getResponse().getContentAsString())
+                .path("notifications").get(0).path("id").asText();
+
+        // 2. Mark notification as read (PUT /worker/notifications/{id}/read)
+        mockMvc.perform(put("/worker/notifications/" + notifId + "/read")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.message", is("Notification marked as read")));
+    }
+
+    // =========================================================================
+    // 10. SUPPORT TICKETS & 24/7 SAFETY SOS ALERT
+    // =========================================================================
+    @Test
+    @DisplayName("Support & Safety: Submit Support Ticket, View Tickets, Trigger Emergency SOS")
+    void testSupportSafetyAndSos() throws Exception {
+        String testWorkerId = "w-support-test-" + System.currentTimeMillis();
+
+        // 1. List initial tickets
+        mockMvc.perform(get("/worker/support/tickets")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.tickets", not(empty())));
+
+        // 2. Create a new support ticket (POST /worker/support/tickets)
+        SupportTicketRequest ticketReq = SupportTicketRequest.builder()
+                .subject("Delay in Bank Account Verification")
+                .category("BANKING")
+                .message("My bank account KYC verification has been pending for over 24 hours.")
+                .build();
+
+        mockMvc.perform(post("/worker/support/tickets")
+                        .header("X-Worker-Id", testWorkerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ticketReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.ticketId", notNullValue()))
+                .andExpect(jsonPath("$.status", is("OPEN")));
+
+        // 3. Trigger Safety SOS (POST /worker/safety/sos)
+        SafetySosRequest sosReq = SafetySosRequest.builder()
+                .lat(17.4399)
+                .lng(78.3812)
+                .build();
+
+        mockMvc.perform(post("/worker/safety/sos")
+                        .header("X-Worker-Id", testWorkerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sosReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.status", is("DISPATCHED")))
+                .andExpect(jsonPath("$.sosIncidentId", notNullValue()))
+                .andExpect(jsonPath("$.coordinates.lat", is(17.4399)));
+    }
+
+    // =========================================================================
+    // 11. DUTY ENFORCEMENT & LOCATION HEARTBEATS
+    // =========================================================================
+    @Test
+    @DisplayName("Duty & Telemetry: Prepaid Balance Barrier, Heartbeat Ping")
+    void testDutyEnforcementAndLocationHeartbeat() throws Exception {
+        String workerId = "w-duty-barrier-" + System.currentTimeMillis();
+
+        // Create profile & wallet with zero prepaid balance (< 100)
+        com.salaryneeds.entity.WorkerProfile profile = com.salaryneeds.entity.WorkerProfile.builder()
+                .id(workerId)
+                .name("Barrier Test Worker")
+                .phone("9988776655")
+                .dutyOnline(false)
+                .build();
+        workerProfileRepository.save(profile);
+
+        com.salaryneeds.entity.WorkerWallet wallet = com.salaryneeds.entity.WorkerWallet.builder()
+                .id("wal-" + workerId)
+                .workerId(workerId)
+                .prepaidDutyBalance(new BigDecimal("50.00")) // Below ₹100 minimum barrier
+                .earningsBalance(BigDecimal.ZERO)
+                .build();
+        workerWalletRepository.save(wallet);
+
+        // Edge Case: Turning duty ON with insufficient prepaid balance -> 403 ERR_INSUFFICIENT_PREPAID_BALANCE
+        mockMvc.perform(request(org.springframework.http.HttpMethod.POST, "/worker/duty/toggle")
+                        .header("X-Worker-Id", workerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"online\": true}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error", is("ERR_INSUFFICIENT_PREPAID_BALANCE")));
+
+        // Fund prepaid balance to ₹250 (>= 100)
+        wallet.setPrepaidDutyBalance(new BigDecimal("250.00"));
+        workerWalletRepository.save(wallet);
+
+        // Turn duty ON successfully
+        mockMvc.perform(request(org.springframework.http.HttpMethod.POST, "/worker/duty/toggle")
+                        .header("X-Worker-Id", workerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"online\": true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dutyOnline", is(true)));
+
+        // Send location heartbeat (POST /worker/location/heartbeat)
+        LocationHeartbeatRequest hbReq = LocationHeartbeatRequest.builder()
+                .lat(17.4933)
+                .lng(78.3995)
+                .speed(18.2)
+                .heading(90.0)
+                .batteryLevel(85)
+                .build();
+
+        mockMvc.perform(post("/worker/location/heartbeat")
+                        .header("X-Worker-Id", workerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(hbReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.message", is("Location heartbeat recorded")));
+    }
+
+    // =========================================================================
+    // 12. WALLET BALANCE, TRANSACTIONS & RECHARGE ORDER
+    // =========================================================================
+    @Test
+    @DisplayName("Wallet Operations: Balance, Transactions, Razorpay Recharge Order")
+    void testWalletAndRechargeOperations() throws Exception {
+        String testWorkerId = "w-wal-test-" + System.currentTimeMillis();
+
+        // 1. Get Wallet Balance (GET /worker/wallet/balance)
+        mockMvc.perform(get("/worker/wallet/balance")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prepaidDutyBalance", notNullValue()))
+                .andExpect(jsonPath("$.withdrawableEarnings", notNullValue()))
+                .andExpect(jsonPath("$.minimumDutyReserveRequired", is(100.00)));
+
+        // 2. Get Transactions (GET /worker/wallet/transactions)
+        mockMvc.perform(get("/worker/wallet/transactions")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.transactions", not(empty())));
+
+        // 3. Create Razorpay Recharge Order (POST /worker/wallet/recharge/create-order)
+        RechargeOrderRequest rechargeReq = new RechargeOrderRequest(new BigDecimal("500.00"));
+        mockMvc.perform(post("/worker/wallet/recharge/create-order")
+                        .header("X-Worker-Id", testWorkerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(rechargeReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId", startsWith("order_Rzp")))
+                .andExpect(jsonPath("$.amount", is(50000)))
+                .andExpect(jsonPath("$.currency", is("INR")));
+    }
+
+    // =========================================================================
+    // 13. SCHEDULE & ROSTER VARIATIONS
+    // =========================================================================
+    @Test
+    @DisplayName("Schedule & Roster: Queries for today, tomorrow, custom dates, and invalid dates")
+    void testScheduleAndRosterVariations() throws Exception {
+        String testWorkerId = "w-sched-test-" + System.currentTimeMillis();
+
+        // Query for today
+        mockMvc.perform(get("/worker/schedule?date=today")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.slots", hasSize(6)))
+                .andExpect(jsonPath("$.summary.booked_visits", greaterThanOrEqualTo(1)));
+
+        // Query for tomorrow
+        mockMvc.perform(get("/worker/schedule?date=tomorrow")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.slots", hasSize(6)));
+
+        // Query for day after
+        mockMvc.perform(get("/worker/schedule?date=day_after")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.slots", hasSize(6)));
+
+        // Query for explicit ISO date
+        mockMvc.perform(get("/worker/schedule?date=2026-10-15")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.date", is("2026-10-15")));
+
+        // Query with invalid format (gracefully falls back to today)
+        mockMvc.perform(get("/worker/schedule?date=invalid-format")
+                        .header("X-Worker-Id", testWorkerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.slots", hasSize(6)));
+    }
+
+    // =========================================================================
+    // 14. CATALOG & DEVICE TOKEN REGISTRATION
+    // =========================================================================
+    @Test
+    @DisplayName("Catalog & Devices: List Services Catalog, Register FCM/Expo Token")
+    void testCatalogAndDeviceTokenOperations() throws Exception {
+        // 1. List Categories (GET /catalog/categories)
+        mockMvc.perform(get("/catalog/categories"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categories", not(empty())))
+                .andExpect(jsonPath("$.categories[0].subCategories", not(empty())));
+
+        // 2. Register Device Token (POST /worker/devices/register-token)
+        DeviceTokenRequest devReq = DeviceTokenRequest.builder()
+                .token("fcm_token_sample_123456789")
+                .platform("ios")
+                .deviceName("iPhone 15 Pro")
+                .build();
+
+        mockMvc.perform(post("/worker/devices/register-token")
+                        .header("X-Worker-Id", "w-dev-token-test")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(devReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+    }
+
+    // =========================================================================
+    // 15. NIGHTLY AUTO-SETTLEMENT SCHEDULER EXECUTION
+    // =========================================================================
+    @Test
+    @DisplayName("Scheduler: Nightly Batch Disbursement, Heartbeat Monitor, Ratings Recalculation")
+    void testNightlySettlementSchedulerDisbursement() {
+        String workerId = "w-settle-" + System.currentTimeMillis();
+
+        // Seed wallet with earnings & verified bank
+        com.salaryneeds.entity.WorkerWallet wallet = com.salaryneeds.entity.WorkerWallet.builder()
+                .id("wal-settle-" + workerId)
+                .workerId(workerId)
+                .earningsBalance(new BigDecimal("2400.00"))
+                .bankName("State Bank of India")
+                .accountLast4("4455")
+                .bankVerified(true)
+                .build();
+        workerWalletRepository.save(wallet);
+
+        // Trigger scheduler
+        nightlySettlementScheduler.executeNightlySettlement();
+
+        // Verify balance is cleared to 0.00 after batch auto-settlement
+        com.salaryneeds.entity.WorkerWallet updated = workerWalletRepository.findByWorkerId(workerId).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(0, BigDecimal.ZERO.compareTo(updated.getEarningsBalance()));
+
+        // Trigger other scheduled tasks
+        nightlySettlementScheduler.monitorDutyHeartbeats();
+        nightlySettlementScheduler.recalculateRatings();
+    }
+
+    // =========================================================================
+    // 16. BOOKING DECLINE & RADAR DISPATCH ENDPOINTS
+    // =========================================================================
+    @Test
+    @DisplayName("Dispatch Radar & Decline: Query /radar and Decline Lead")
+    void testDeclineLeadAndRadarEndpoints() throws Exception {
+        String workerId = "w-radar-test-" + System.currentTimeMillis();
+
+        // Query dispatch radar via alias GET /worker/bookings/radar
+        mockMvc.perform(get("/worker/bookings/radar?lat=17.44&lng=78.38&radius_km=10")
+                        .header("X-Worker-Id", workerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.count", greaterThan(0)));
+
+        // Decline a lead (POST /worker/bookings/{id}/decline)
+        DeclineLeadRequest declineReq = DeclineLeadRequest.builder()
+                .reason("Far from current location")
+                .notes("Out of range")
+                .build();
+        mockMvc.perform(post("/worker/bookings/SNB-89104/decline")
+                        .header("X-Worker-Id", workerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(declineReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.message", is("Lead declined.")));
+    }
 }
+
