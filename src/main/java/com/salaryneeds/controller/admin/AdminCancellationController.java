@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin/cancellations")
+@RequestMapping({"/api/admin/cancellations", "/admin/cancellations", "/api/admin/bookings/cancellations", "/admin/bookings/cancellations"})
 @RequiredArgsConstructor
 public class AdminCancellationController {
 

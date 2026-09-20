@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin/payments")
+@RequestMapping({"/api/admin/payments", "/admin/payments", "/api/admin/bookings/payments", "/admin/bookings/payments"})
 @RequiredArgsConstructor
 public class AdminPaymentController {
 

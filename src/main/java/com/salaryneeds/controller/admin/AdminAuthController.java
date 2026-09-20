@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping({"/api/admin/auth", "/auth", "/api/auth"})
+@RequestMapping({"/api/admin/auth", "/admin/auth", "/auth", "/api/auth"})
 @RequiredArgsConstructor
 public class AdminAuthController {
 

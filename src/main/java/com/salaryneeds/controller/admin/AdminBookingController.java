@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/bookings")
+@RequestMapping({"/api/admin/bookings", "/admin/bookings"})
 @RequiredArgsConstructor
 public class AdminBookingController {
 

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/coupons")
+@RequestMapping({"/api/admin/coupon-management", "/admin/coupon-management"})
 @RequiredArgsConstructor
 public class AdminCouponController {
 
