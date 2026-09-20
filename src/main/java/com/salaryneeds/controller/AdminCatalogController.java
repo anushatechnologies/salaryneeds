@@ -23,64 +23,31 @@ public class AdminCatalogController {
     private final FileStorageService fileStorageService;
 
     // ==========================================
-    // 1. SERVICE (TOP LEVEL)
+    // 0. IMAGE UPLOAD
     // ==========================================
 
-    @PostMapping("/services")
-    public ResponseEntity<ServiceResponseDTO> createService(@Valid @RequestBody ServiceRequestDTO request) {
-        ServiceResponseDTO response = catalogManagementService.createService(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    @GetMapping("/services")
-    public ResponseEntity<List<ServiceResponseDTO>> getAllServices(
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String status
+    @PostMapping(value = "/uploads/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<java.util.Map<String, String>> uploadImage(
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "file", required = false) MultipartFile file
     ) {
-        List<ServiceResponseDTO> services = catalogManagementService.getAllServices(search, status);
-        return ResponseEntity.ok(services);
-    }
-
-    @GetMapping("/services/{serviceId}")
-    public ResponseEntity<ServiceResponseDTO> getServiceById(
-            @PathVariable UUID serviceId,
-            @RequestParam(defaultValue = "true") boolean includeCategories
-    ) {
-        ServiceResponseDTO response = catalogManagementService.getServiceById(serviceId, includeCategories);
+        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        if (upload == null || upload.isEmpty()) {
+            throw new IllegalArgumentException("Image file must not be empty");
+        }
+        String imageUrl = fileStorageService.store(upload, "catalog");
+        java.util.Map<String, String> response = new java.util.HashMap<>();
+        response.put("imageUrl", imageUrl);
+        response.put("image", imageUrl);
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/services/{serviceId}")
-    public ResponseEntity<ServiceResponseDTO> updateService(
-            @PathVariable UUID serviceId,
-            @RequestBody ServiceRequestDTO request
-    ) {
-        ServiceResponseDTO response = catalogManagementService.updateService(serviceId, request);
-        return ResponseEntity.ok(response);
-    }
-
-    @PatchMapping("/services/{serviceId}/status")
-    public ResponseEntity<ServiceResponseDTO> updateServiceStatus(
-            @PathVariable UUID serviceId,
-            @Valid @RequestBody StatusUpdateRequestDTO request
-    ) {
-        ServiceResponseDTO response = catalogManagementService.updateServiceStatus(serviceId, request.getStatus());
-        return ResponseEntity.ok(response);
-    }
-
-    @DeleteMapping("/services/{serviceId}")
-    public ResponseEntity<Void> deleteService(@PathVariable UUID serviceId) {
-        catalogManagementService.deleteService(serviceId);
-        return ResponseEntity.noContent().build();
-    }
-
     // ==========================================
-    // 2. CATEGORY MODULE
+    // 1. CATEGORY MODULE (TIER 1)
     // ==========================================
 
-    @PostMapping(value = {"/categories", "/services/{serviceId}/categories"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/categories", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CategoryResponseDTO> createCategoryMultipart(
-            @PathVariable(required = false) UUID serviceId,
             @ModelAttribute CategoryRequestDTO request,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "file", required = false) MultipartFile file
@@ -90,28 +57,15 @@ public class AdminCatalogController {
             String imageUrl = fileStorageService.store(upload, "categories");
             request.setImageUrl(imageUrl);
         }
-        CategoryResponseDTO response;
-        if (serviceId != null) {
-            request.setServiceId(serviceId);
-            response = catalogManagementService.createCategory(serviceId, request);
-        } else {
-            response = catalogManagementService.createCategory(request);
-        }
+        CategoryResponseDTO response = catalogManagementService.createCategory(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PostMapping(value = {"/categories", "/services/{serviceId}/categories"})
+    @PostMapping("/categories")
     public ResponseEntity<CategoryResponseDTO> createCategory(
-            @PathVariable(required = false) UUID serviceId,
             @Valid @RequestBody CategoryRequestDTO request
     ) {
-        CategoryResponseDTO response;
-        if (serviceId != null) {
-            request.setServiceId(serviceId);
-            response = catalogManagementService.createCategory(serviceId, request);
-        } else {
-            response = catalogManagementService.createCategory(request);
-        }
+        CategoryResponseDTO response = catalogManagementService.createCategory(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -133,13 +87,12 @@ public class AdminCatalogController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping({"/categories", "/services/{serviceId}/categories"})
+    @GetMapping("/categories")
     public ResponseEntity<List<CategoryResponseDTO>> getCategories(
-            @PathVariable(required = false) UUID serviceId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status
     ) {
-        List<CategoryResponseDTO> response = catalogManagementService.getCategoriesByService(serviceId, search, status);
+        List<CategoryResponseDTO> response = catalogManagementService.getAllCategories(search, status);
         return ResponseEntity.ok(response);
     }
 
@@ -177,17 +130,22 @@ public class AdminCatalogController {
     }
 
     // ==========================================
-    // 3. SUBCATEGORY / SERVICE MODULE
+    // 2. SUBCATEGORY / SERVICE MODULE
     // ==========================================
 
     @PostMapping(value = {"/subcategories", "/categories/{categoryId}/sub-categories", "/categories/{categoryId}/subcategories"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SubCategoryResponseDTO> createSubCategoryMultipart(
             @PathVariable(required = false) UUID categoryId,
             @ModelAttribute SubCategoryRequestDTO request,
+            @RequestParam(value = "uploadImage", required = false) MultipartFile uploadImageParam,
+            @RequestParam(value = "upload_image", required = false) MultipartFile uploadImageSnake,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "file", required = false) MultipartFile file
     ) {
-        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        MultipartFile upload = uploadImageParam != null && !uploadImageParam.isEmpty() ? uploadImageParam :
+                (uploadImageSnake != null && !uploadImageSnake.isEmpty() ? uploadImageSnake :
+                (file != null && !file.isEmpty() ? file : image));
+
         if (upload != null && !upload.isEmpty()) {
             String imageUrl = fileStorageService.store(upload, "subcategories");
             request.setImageUrl(imageUrl);
@@ -266,17 +224,24 @@ public class AdminCatalogController {
     }
 
     // ==========================================
-    // 4. OPTIONAL VARIANT MODULE
+    // 3. OPTIONAL VARIANT MODULE
     // ==========================================
 
     @PostMapping(value = {"/subcategories/{subCategoryId}/variants", "/sub-categories/{subCategoryId}/variants"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<VariantResponseDTO> createVariantMultipart(
             @PathVariable Long subCategoryId,
             @ModelAttribute VariantRequestDTO request,
+            @RequestParam(value = "variantImage", required = false) MultipartFile variantImage,
+            @RequestParam(value = "variant_image", required = false) MultipartFile variantImageSnake,
+            @RequestParam(value = "uploadImage", required = false) MultipartFile uploadImage,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "file", required = false) MultipartFile file
     ) {
-        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        MultipartFile upload = variantImage != null && !variantImage.isEmpty() ? variantImage :
+                (variantImageSnake != null && !variantImageSnake.isEmpty() ? variantImageSnake :
+                (uploadImage != null && !uploadImage.isEmpty() ? uploadImage :
+                (file != null && !file.isEmpty() ? file : image)));
+
         if (upload != null && !upload.isEmpty()) {
             String imageUrl = fileStorageService.store(upload, "variants");
             request.setImageUrl(imageUrl);
@@ -331,5 +296,18 @@ public class AdminCatalogController {
     public ResponseEntity<Void> deleteVariant(@PathVariable Long variantId) {
         catalogManagementService.deleteVariant(variantId);
         return ResponseEntity.noContent().build();
+    }
+
+    // ==========================================
+    // 4. PURGE / CLEAR ALL DATABASE DATA
+    // ==========================================
+
+    @DeleteMapping({"/clear-all-data", "/catalog/clear-all", "/categories/clear-all"})
+    public ResponseEntity<java.util.Map<String, Object>> clearAllCatalogData() {
+        catalogManagementService.clearAllCatalogData();
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("success", true);
+        response.put("message", "All catalog data (categories, subcategories, variants) removed successfully from database");
+        return ResponseEntity.ok(response);
     }
 }

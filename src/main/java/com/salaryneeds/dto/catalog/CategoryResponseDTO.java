@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -19,16 +18,10 @@ import java.util.UUID;
 public class CategoryResponseDTO {
 
     private UUID id;
-    private UUID serviceId;
-    private String serviceName;
     private String name;
     private String description;
-    private BigDecimal amount;
-    private BigDecimal discount;
-    private BigDecimal finalAmount;
     private String imageUrl;
     private String image;
-    private Integer displayOrder;
     private String status;
     private Boolean isActive;
     private Integer subCategoriesCount;

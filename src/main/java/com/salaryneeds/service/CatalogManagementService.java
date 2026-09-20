@@ -7,20 +7,7 @@ import java.util.UUID;
 
 public interface CatalogManagementService {
 
-    // --- 1. Service (Top Level) Operations ---
-    ServiceResponseDTO createService(ServiceRequestDTO request);
-
-    List<ServiceResponseDTO> getAllServices(String search, String status);
-
-    ServiceResponseDTO getServiceById(UUID serviceId, boolean includeCategories);
-
-    ServiceResponseDTO updateService(UUID serviceId, ServiceRequestDTO request);
-
-    ServiceResponseDTO updateServiceStatus(UUID serviceId, String status);
-
-    void deleteService(UUID serviceId);
-
-    // --- 2. Category Operations ---
+    // --- 1. Category Operations ---
     CategoryResponseDTO createCategory(CategoryRequestDTO request);
 
     CategoryResponseDTO createCategory(UUID serviceId, CategoryRequestDTO request);
@@ -37,7 +24,7 @@ public interface CatalogManagementService {
 
     void deleteCategory(UUID categoryId);
 
-    // --- 3. Sub-Category / Service Operations ---
+    // --- 2. Sub-Category / Service Operations ---
     SubCategoryResponseDTO createSubCategory(SubCategoryRequestDTO request);
 
     SubCategoryResponseDTO createSubCategory(UUID categoryId, SubCategoryRequestDTO request);
@@ -56,7 +43,7 @@ public interface CatalogManagementService {
 
     void deleteSubCategory(Long subCategoryId);
 
-    // --- 4. Optional Variant Operations ---
+    // --- 3. Optional Variant Operations ---
     VariantResponseDTO createVariant(Long subCategoryId, VariantRequestDTO request);
 
     List<VariantResponseDTO> getVariantsBySubCategory(Long subCategoryId, String status);
@@ -69,7 +56,7 @@ public interface CatalogManagementService {
 
     void deleteVariant(Long variantId);
 
-    // --- 5. User & Worker Active Catalog Operations ---
+    // --- 4. User & Worker Active Catalog Operations ---
     List<CategoryResponseDTO> getActiveCategories();
 
     List<SubCategoryResponseDTO> getActiveSubCategoriesByCategory(UUID categoryId);
@@ -77,4 +64,7 @@ public interface CatalogManagementService {
     SubCategoryResponseDTO getActiveSubCategoryById(Long subCategoryId);
 
     List<VariantResponseDTO> getActiveVariantsBySubCategory(Long subCategoryId);
+
+    // --- 5. Data Reset Operations ---
+    void clearAllCatalogData();
 }

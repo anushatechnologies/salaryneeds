@@ -1,12 +1,10 @@
 package com.salaryneeds;
 
 import com.salaryneeds.dto.catalog.*;
-import com.salaryneeds.entity.CatalogServiceEntity;
 import com.salaryneeds.entity.Category;
 import com.salaryneeds.entity.ServiceItem;
 import com.salaryneeds.entity.Variant;
 import com.salaryneeds.exception.*;
-import com.salaryneeds.repository.CatalogServiceRepository;
 import com.salaryneeds.repository.CategoryRepository;
 import com.salaryneeds.repository.ServiceItemRepository;
 import com.salaryneeds.repository.VariantRepository;
@@ -30,9 +28,6 @@ import static org.mockito.Mockito.*;
 public class CatalogModuleServiceTest {
 
     @Mock
-    private CatalogServiceRepository catalogServiceRepository;
-
-    @Mock
     private CategoryRepository categoryRepository;
 
     @Mock
@@ -44,33 +39,19 @@ public class CatalogModuleServiceTest {
     @InjectMocks
     private CatalogManagementServiceImpl catalogManagementService;
 
-    private UUID serviceId1;
     private UUID categoryId1;
-    private CatalogServiceEntity topService1;
     private Category category1;
     private ServiceItem subCat1;
 
     @BeforeEach
     void setUp() {
-        serviceId1 = UUID.randomUUID();
         categoryId1 = UUID.randomUUID();
-
-        topService1 = CatalogServiceEntity.builder()
-                .id(serviceId1)
-                .name("home services")
-                .description("Home maintenance and repair")
-                .imageUrl("http://img.com/service.png")
-                .displayOrder(1)
-                .isActive(true)
-                .build();
 
         category1 = Category.builder()
                 .id(categoryId1)
-                .service(topService1)
                 .name("home cleaning")
                 .description("Cleaning services")
                 .iconUrl("http://img.com/clean.png")
-                .displayOrder(1)
                 .isActive(true)
                 .build();
 
@@ -86,49 +67,7 @@ public class CatalogModuleServiceTest {
                 .build();
     }
 
-    // --- Level 1: Service Tests ---
-
-    @Test
-    @DisplayName("1. Create valid Service")
-    void testCreateValidService() {
-        ServiceRequestDTO request = ServiceRequestDTO.builder()
-                .name("  Home   Services  ")
-                .description("Full home services")
-                .imageUrl("http://img.com/clean.png")
-                .displayOrder(1)
-                .status("ACTIVE")
-                .build();
-
-        when(catalogServiceRepository.existsByName("home services")).thenReturn(false);
-        when(catalogServiceRepository.save(any(CatalogServiceEntity.class))).thenAnswer(invocation -> {
-            CatalogServiceEntity srv = invocation.getArgument(0);
-            srv.setId(UUID.randomUUID());
-            return srv;
-        });
-
-        ServiceResponseDTO response = catalogManagementService.createService(request);
-
-        assertNotNull(response);
-        assertEquals("home services", response.getName());
-        assertEquals("ACTIVE", response.getStatus());
-        verify(catalogServiceRepository).save(any(CatalogServiceEntity.class));
-    }
-
-    @Test
-    @DisplayName("2. Create duplicate Service throws 409")
-    void testCreateDuplicateService() {
-        ServiceRequestDTO request = ServiceRequestDTO.builder()
-                .name("HOME SERVICES")
-                .build();
-
-        when(catalogServiceRepository.existsByName("home services")).thenReturn(true);
-
-        assertThrows(DuplicateCatalogServiceException.class, () ->
-                catalogManagementService.createService(request)
-        );
-    }
-
-    // --- Level 2: Category Tests ---
+    // --- Level 1: Category Tests ---
 
     @Test
     @DisplayName("3. Create Category stores name strictly in LOWERCASE regardless of input case")
@@ -156,17 +95,16 @@ public class CatalogModuleServiceTest {
     }
 
     @Test
-    @DisplayName("4. Create duplicate Category under same Service throws 409")
+    @DisplayName("4. Create duplicate Category throws 409")
     void testCreateDuplicateCategory() {
         CategoryRequestDTO request = CategoryRequestDTO.builder()
                 .name("Home Cleaning")
                 .build();
 
-        when(catalogServiceRepository.findById(serviceId1)).thenReturn(Optional.of(topService1));
-        when(categoryRepository.existsByServiceIdAndName(serviceId1, "home cleaning")).thenReturn(true);
+        when(categoryRepository.existsByName("home cleaning")).thenReturn(true);
 
         assertThrows(DuplicateCategoryException.class, () ->
-                catalogManagementService.createCategory(serviceId1, request)
+                catalogManagementService.createCategory(request)
         );
     }
 

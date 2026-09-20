@@ -51,13 +51,11 @@ public class CatalogHierarchyAndVariantTest {
     private com.salaryneeds.service.FileStorageService fileStorageService;
 
     @Test
-    @DisplayName("Edge Case 1: Category Name submitted in UPPERCASE is returned normalized in lowercase with amount, discount, and final amount")
+    @DisplayName("Edge Case 1: Category Name submitted in UPPERCASE is returned normalized in lowercase")
     void testCategoryNameSubmittedInUppercaseStoresInLowercase() throws Exception {
         CategoryRequestDTO request = CategoryRequestDTO.builder()
                 .name("HOME CLEANING")
                 .description("Complete residential home cleaning")
-                .amount(BigDecimal.valueOf(1000))
-                .discount(BigDecimal.valueOf(15))
                 .status("ACTIVE")
                 .build();
 
@@ -65,9 +63,6 @@ public class CatalogHierarchyAndVariantTest {
                 .id(UUID.randomUUID())
                 .name("home cleaning") // Backend normalized
                 .description("Complete residential home cleaning")
-                .amount(BigDecimal.valueOf(1000))
-                .discount(BigDecimal.valueOf(15))
-                .finalAmount(BigDecimal.valueOf(850)) // 1000 - 15% = 850
                 .status("ACTIVE")
                 .isActive(true)
                 .build();
@@ -80,9 +75,6 @@ public class CatalogHierarchyAndVariantTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("home cleaning"))
-                .andExpect(jsonPath("$.amount").value(1000))
-                .andExpect(jsonPath("$.discount").value(15))
-                .andExpect(jsonPath("$.finalAmount").value(850))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
     }
 

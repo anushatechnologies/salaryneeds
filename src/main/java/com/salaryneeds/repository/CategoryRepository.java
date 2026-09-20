@@ -7,20 +7,21 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
-
 import java.util.UUID;
 
 public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
-    List<Category> findByIsActiveOrderByDisplayOrderAscNameAsc(Boolean isActive);
+    List<Category> findByIsActiveOrderByNameAsc(Boolean isActive);
 
-    List<Category> findAllByOrderByDisplayOrderAscNameAsc();
+    List<Category> findAllByOrderByNameAsc();
 
-    List<Category> findByServiceId(UUID serviceId);
+    default List<Category> findByIsActiveOrderByDisplayOrderAscNameAsc(Boolean isActive) {
+        return findByIsActiveOrderByNameAsc(isActive);
+    }
 
-    List<Category> findByServiceIdAndIsActiveTrue(UUID serviceId);
-
-    int countByServiceId(UUID serviceId);
+    default List<Category> findAllByOrderByDisplayOrderAscNameAsc() {
+        return findAllByOrderByNameAsc();
+    }
 
     Optional<Category> findByIdAndIsActiveTrue(UUID id);
 
@@ -34,15 +35,17 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     boolean existsByNameAndIdNot(String name, UUID id);
 
-    boolean existsByServiceIdAndName(UUID serviceId, String name);
-
-    boolean existsByServiceIdAndNameAndIdNot(UUID serviceId, String name, UUID id);
-
     @Query("SELECT c FROM Category c WHERE " +
-           "(:serviceId IS NULL OR c.service.id = :serviceId) AND " +
            "(:isActive IS NULL OR c.isActive = :isActive) AND " +
            "(:search IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "ORDER BY c.displayOrder ASC, c.name ASC")
-    List<Category> searchCategories(@Param("serviceId") UUID serviceId, @Param("search") String search, @Param("isActive") Boolean isActive);
-    List<Category> findByIsActiveTrueOrderByDisplayOrderAsc();
+           "ORDER BY c.name ASC")
+    List<Category> searchCategories(@Param("search") String search, @Param("isActive") Boolean isActive);
+
+    default List<Category> searchCategories(UUID serviceId, String search, Boolean isActive) {
+        return searchCategories(search, isActive);
+    }
+
+    default List<Category> findByIsActiveTrueOrderByDisplayOrderAsc() {
+        return findByIsActiveOrderByNameAsc(true);
+    }
 }

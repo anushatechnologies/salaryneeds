@@ -54,6 +54,10 @@ public class Variant {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "display_order")
+    @Builder.Default
+    private Integer displayOrder = 0;
+
     @Column(name = "status", nullable = false)
     @Builder.Default
     private String status = "ACTIVE";

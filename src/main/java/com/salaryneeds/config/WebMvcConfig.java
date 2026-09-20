@@ -28,20 +28,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/user/**",
                         "/api/worker/**",
                         "/worker/catalog/**"
-                )
-                .excludePathPatterns(
-                        "/admin/workers/**",
-                        "/admin/reviews/**",
-                        "/worker/auth/**",
-                        "/worker/profile/**",
-                        "/worker/bookings/**",
-                        "/worker/location/**",
-                        "/worker/schedule/**",
-                        "/worker/wallet/**",
-                        "/worker/bank/**",
-                        "/worker/documents/**",
-                        "/worker/reviews/**",
-                        "/worker/devices/**"
                 );
     }
 
@@ -59,7 +45,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .allowedOriginPatterns("*")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
-                .exposedHeaders("X-Customer-Id", "X-Worker-Id", "Authorization")
+                .exposedHeaders("X-Role", "X-Admin-Role", "X-User-Id", "X-Worker-Id", "Authorization")
                 .allowCredentials(true)
                 .maxAge(3600);
     }

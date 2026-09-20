@@ -50,8 +50,6 @@ public class UserAndWorkerCatalogTest {
         CategoryRequestDTO catReq = CategoryRequestDTO.builder()
                 .name("Home Cleaning " + uniqueSuffix)
                 .description("Home cleaning services")
-                .amount(BigDecimal.ZERO)
-                .discount(BigDecimal.ZERO)
                 .imageUrl("https://example.com/home.jpg")
                 .status("ACTIVE")
                 .build();
@@ -223,12 +221,12 @@ public class UserAndWorkerCatalogTest {
     @DisplayName("Role authorization checks across Admin, User, and Worker")
     void testRoleAuthorization() throws Exception {
         // User cannot access Admin APIs
-        mockMvc.perform(get("/api/admin/services")
+        mockMvc.perform(get("/api/admin/categories")
                         .header("X-Role", "USER"))
                 .andExpect(status().isForbidden());
 
         // Worker cannot access Admin APIs
-        mockMvc.perform(get("/api/admin/services")
+        mockMvc.perform(get("/api/admin/categories")
                         .header("X-Role", "WORKER"))
                 .andExpect(status().isForbidden());
 

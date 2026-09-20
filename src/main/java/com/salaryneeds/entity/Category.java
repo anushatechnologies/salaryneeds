@@ -10,8 +10,6 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -28,10 +26,6 @@ public class Category {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "service_id")
-    private CatalogServiceEntity service;
-
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -44,24 +38,8 @@ public class Category {
     @Column(name = "description", length = 500)
     private String description;
 
-    @Column(name = "amount", nullable = false, precision = 10, scale = 2)
-    @Builder.Default
-    private BigDecimal amount = BigDecimal.ZERO;
-
-    @Column(name = "discount", precision = 10, scale = 2)
-    @Builder.Default
-    private BigDecimal discount = BigDecimal.ZERO;
-
-    @Column(name = "final_amount", nullable = false, precision = 10, scale = 2)
-    @Builder.Default
-    private BigDecimal finalAmount = BigDecimal.ZERO;
-
     @Column(name = "icon_url")
     private String iconUrl;
-
-    @Column(name = "display_order")
-    @Builder.Default
-    private Integer displayOrder = 0;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
@@ -95,22 +73,6 @@ public class Category {
         }
     }
 
-    public void calculateFinalAmount() {
-        if (this.amount == null) {
-            this.amount = BigDecimal.ZERO;
-        }
-        if (this.discount == null || this.discount.compareTo(BigDecimal.ZERO) <= 0) {
-            this.finalAmount = this.amount;
-        } else if (this.discount.compareTo(BigDecimal.valueOf(100)) <= 0) {
-            // Percentage discount: finalAmount = amount - (amount * discount / 100)
-            BigDecimal discountAmt = this.amount.multiply(this.discount).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            this.finalAmount = this.amount.subtract(discountAmt).max(BigDecimal.ZERO);
-        } else {
-            // Flat discount
-            this.finalAmount = this.amount.subtract(this.discount).max(BigDecimal.ZERO);
-        }
-    }
-
     @PrePersist
     @PreUpdate
     public void prePersistOrUpdate() {
@@ -120,9 +82,5 @@ public class Category {
         if (this.isActive == null) {
             this.isActive = true;
         }
-        if (this.displayOrder == null) {
-            this.displayOrder = 0;
-        }
-        calculateFinalAmount();
     }
 }

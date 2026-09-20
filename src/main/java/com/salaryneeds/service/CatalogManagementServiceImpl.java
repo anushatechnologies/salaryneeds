@@ -1,12 +1,10 @@
 package com.salaryneeds.service;
 
 import com.salaryneeds.dto.catalog.*;
-import com.salaryneeds.entity.CatalogServiceEntity;
 import com.salaryneeds.entity.Category;
 import com.salaryneeds.entity.ServiceItem;
 import com.salaryneeds.entity.Variant;
 import com.salaryneeds.exception.*;
-import com.salaryneeds.repository.CatalogServiceRepository;
 import com.salaryneeds.repository.CategoryRepository;
 import com.salaryneeds.repository.ServiceItemRepository;
 import com.salaryneeds.repository.VariantRepository;
@@ -27,171 +25,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CatalogManagementServiceImpl implements CatalogManagementService {
 
-    private final CatalogServiceRepository catalogServiceRepository;
     private final CategoryRepository categoryRepository;
     private final ServiceItemRepository serviceItemRepository;
     private final VariantRepository variantRepository;
 
     // ==========================================
-    // 1. SERVICE (TOP LEVEL)
-    // ==========================================
-
-    @Override
-    @Transactional
-    public ServiceResponseDTO createService(ServiceRequestDTO request) {
-        if (request == null) {
-            throw new InvalidCatalogDataException("Request body must not be null");
-        }
-
-        CatalogNameNormalizer.validateCatalogName(request.getName(), "Service name", 100);
-        CatalogNameNormalizer.validateOptionalText(request.getDescription(), "Description", 500);
-
-        String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
-
-        if (catalogServiceRepository.existsByName(lowerCaseName)) {
-            throw new DuplicateCatalogServiceException("A Service with the name '" + lowerCaseName + "' already exists");
-        }
-
-        Boolean isActive = true;
-        if (request.getStatus() != null) {
-            CatalogStatus status = CatalogStatus.fromString(request.getStatus());
-            isActive = CatalogStatus.toBoolean(status);
-        }
-
-        CatalogServiceEntity entity = CatalogServiceEntity.builder()
-                .name(lowerCaseName)
-                .description(request.getDescription())
-                .imageUrl(request.getImageUrl())
-                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
-                .isActive(isActive)
-                .build();
-
-        CatalogServiceEntity saved = catalogServiceRepository.save(entity);
-        log.info("Created Service with ID: {} and Name: {}", saved.getId(), saved.getName());
-        return mapToServiceResponseDTO(saved, false);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ServiceResponseDTO> getAllServices(String search, String status) {
-        Boolean isActive = null;
-        if (status != null && !status.trim().isEmpty()) {
-            CatalogStatus catalogStatus = CatalogStatus.fromString(status);
-            isActive = CatalogStatus.toBoolean(catalogStatus);
-        }
-
-        String cleanedSearch = null;
-        if (search != null && !search.trim().isEmpty()) {
-            cleanedSearch = CatalogNameNormalizer.toLowerCaseNormalized(search);
-        }
-
-        List<CatalogServiceEntity> entities;
-        if (cleanedSearch != null || isActive != null) {
-            entities = catalogServiceRepository.searchServices(cleanedSearch, isActive);
-        } else {
-            entities = catalogServiceRepository.findAllByOrderByDisplayOrderAscNameAsc();
-        }
-
-        return entities.stream()
-                .map(srv -> mapToServiceResponseDTO(srv, false))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ServiceResponseDTO getServiceById(UUID serviceId, boolean includeCategories) {
-        if (serviceId == null) {
-            throw new InvalidCatalogDataException("Service ID must not be null");
-        }
-
-        CatalogServiceEntity entity = catalogServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new CatalogServiceNotFoundException("Service not found with ID: " + serviceId));
-
-        return mapToServiceResponseDTO(entity, includeCategories);
-    }
-
-    @Override
-    @Transactional
-    public ServiceResponseDTO updateService(UUID serviceId, ServiceRequestDTO request) {
-        if (serviceId == null) {
-            throw new InvalidCatalogDataException("Service ID must not be null");
-        }
-        if (request == null) {
-            throw new InvalidCatalogDataException("Request body must not be null");
-        }
-
-        CatalogServiceEntity entity = catalogServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new CatalogServiceNotFoundException("Service not found with ID: " + serviceId));
-
-        if (request.getName() != null) {
-            CatalogNameNormalizer.validateCatalogName(request.getName(), "Service name", 100);
-            String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
-
-            if (catalogServiceRepository.existsByNameAndIdNot(lowerCaseName, serviceId)) {
-                throw new DuplicateCatalogServiceException("A Service with the name '" + lowerCaseName + "' already exists");
-            }
-
-            entity.setName(lowerCaseName);
-        }
-
-        if (request.getDescription() != null) {
-            CatalogNameNormalizer.validateOptionalText(request.getDescription(), "Description", 500);
-            entity.setDescription(request.getDescription());
-        }
-
-        if (request.getImageUrl() != null) {
-            entity.setImageUrl(request.getImageUrl());
-        }
-
-        if (request.getDisplayOrder() != null) {
-            entity.setDisplayOrder(request.getDisplayOrder());
-        }
-
-        if (request.getStatus() != null) {
-            CatalogStatus status = CatalogStatus.fromString(request.getStatus());
-            entity.setIsActive(CatalogStatus.toBoolean(status));
-        }
-
-        CatalogServiceEntity saved = catalogServiceRepository.save(entity);
-        log.info("Updated Service with ID: {}", saved.getId());
-        return mapToServiceResponseDTO(saved, false);
-    }
-
-    @Override
-    @Transactional
-    public ServiceResponseDTO updateServiceStatus(UUID serviceId, String status) {
-        if (serviceId == null) {
-            throw new InvalidCatalogDataException("Service ID must not be null");
-        }
-        if (status == null || status.trim().isEmpty()) {
-            throw new InvalidCatalogDataException("Status must not be blank");
-        }
-
-        CatalogStatus catalogStatus = CatalogStatus.fromString(status);
-        CatalogServiceEntity entity = catalogServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new CatalogServiceNotFoundException("Service not found with ID: " + serviceId));
-
-        entity.setIsActive(CatalogStatus.toBoolean(catalogStatus));
-        CatalogServiceEntity saved = catalogServiceRepository.save(entity);
-        log.info("Updated status of Service ID: {} to {}", saved.getId(), saved.getStatus());
-        return mapToServiceResponseDTO(saved, false);
-    }
-
-    @Override
-    @Transactional
-    public void deleteService(UUID serviceId) {
-        if (serviceId == null) {
-            throw new InvalidCatalogDataException("Service ID must not be null");
-        }
-        if (!catalogServiceRepository.existsById(serviceId)) {
-            throw new CatalogServiceNotFoundException("Service not found with ID: " + serviceId);
-        }
-        catalogServiceRepository.deleteById(serviceId);
-        log.info("Deleted Service with ID: {}", serviceId);
-    }
-
-    // ==========================================
-    // 2. CATEGORY OPERATIONS
+    // 1. CATEGORY OPERATIONS
     // ==========================================
 
     @Override
@@ -199,9 +38,6 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     public CategoryResponseDTO createCategory(CategoryRequestDTO request) {
         if (request == null) {
             throw new InvalidCatalogDataException("Request body must not be null");
-        }
-        if (request.getServiceId() != null) {
-            return createCategory(request.getServiceId(), request);
         }
 
         CatalogNameNormalizer.validateCatalogName(request.getName(), "Category name", 255);
@@ -219,18 +55,10 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             isActive = CatalogStatus.toBoolean(status);
         }
 
-        BigDecimal amount = request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO;
-        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
-        BigDecimal finalAmount = calculateFinalAmount(amount, discount, request.getFinalAmount());
-
         Category category = Category.builder()
                 .name(lowerCaseName)
                 .description(request.getDescription())
-                .amount(amount)
-                .discount(discount)
-                .finalAmount(finalAmount)
                 .iconUrl(request.getImageUrl())
-                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .isActive(isActive)
                 .build();
 
@@ -242,51 +70,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     @Override
     @Transactional
     public CategoryResponseDTO createCategory(UUID serviceId, CategoryRequestDTO request) {
-        if (serviceId == null) {
-            return createCategory(request);
-        }
-        if (request == null) {
-            throw new InvalidCatalogDataException("Request body must not be null");
-        }
-
-        CatalogServiceEntity parentService = catalogServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new CatalogServiceNotFoundException("Parent Service not found with ID: " + serviceId));
-
-        CatalogNameNormalizer.validateCatalogName(request.getName(), "Category name", 255);
-        CatalogNameNormalizer.validateOptionalText(request.getDescription(), "Description", 500);
-
-        String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
-
-        if (categoryRepository.existsByServiceIdAndName(serviceId, lowerCaseName)) {
-            throw new DuplicateCategoryException("A Category with the name '" + lowerCaseName +
-                    "' already exists under parent Service '" + parentService.getName() + "'");
-        }
-
-        Boolean isActive = true;
-        if (request.getStatus() != null) {
-            CatalogStatus status = CatalogStatus.fromString(request.getStatus());
-            isActive = CatalogStatus.toBoolean(status);
-        }
-
-        BigDecimal amount = request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO;
-        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
-        BigDecimal finalAmount = calculateFinalAmount(amount, discount, request.getFinalAmount());
-
-        Category category = Category.builder()
-                .service(parentService)
-                .name(lowerCaseName)
-                .description(request.getDescription())
-                .amount(amount)
-                .discount(discount)
-                .finalAmount(finalAmount)
-                .iconUrl(request.getImageUrl())
-                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
-                .isActive(isActive)
-                .build();
-
-        Category saved = categoryRepository.save(category);
-        log.info("Created Category with ID: {} under Service: {}", saved.getId(), parentService.getName());
-        return mapToCategoryResponseDTO(saved, false);
+        return createCategory(request);
     }
 
     @Override
@@ -298,10 +82,6 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     @Override
     @Transactional(readOnly = true)
     public List<CategoryResponseDTO> getCategoriesByService(UUID serviceId, String search, String status) {
-        if (serviceId != null && !catalogServiceRepository.existsById(serviceId)) {
-            throw new CatalogServiceNotFoundException("Parent Service not found with ID: " + serviceId);
-        }
-
         Boolean isActive = null;
         if (status != null && !status.trim().isEmpty()) {
             CatalogStatus catalogStatus = CatalogStatus.fromString(status);
@@ -314,10 +94,10 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         }
 
         List<Category> categories;
-        if (cleanedSearch != null || isActive != null || serviceId != null) {
-            categories = categoryRepository.searchCategories(serviceId, cleanedSearch, isActive);
+        if (cleanedSearch != null || isActive != null) {
+            categories = categoryRepository.searchCategories(cleanedSearch, isActive);
         } else {
-            categories = categoryRepository.findAllByOrderByDisplayOrderAscNameAsc();
+            categories = categoryRepository.findAllByOrderByNameAsc();
         }
 
         return categories.stream()
@@ -351,22 +131,11 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found with ID: " + categoryId));
 
-        CatalogServiceEntity targetService = category.getService();
-        if (request.getServiceId() != null && (targetService == null || !request.getServiceId().equals(targetService.getId()))) {
-            targetService = catalogServiceRepository.findById(request.getServiceId())
-                    .orElseThrow(() -> new CatalogServiceNotFoundException("Target Parent Service not found with ID: " + request.getServiceId()));
-            category.setService(targetService);
-        }
-
         if (request.getName() != null) {
             CatalogNameNormalizer.validateCatalogName(request.getName(), "Category name", 255);
             String lowerCaseName = CatalogNameNormalizer.toLowerCaseNormalized(request.getName());
 
-            UUID targetServiceId = targetService != null ? targetService.getId() : null;
-            if (targetServiceId != null && categoryRepository.existsByServiceIdAndNameAndIdNot(targetServiceId, lowerCaseName, categoryId)) {
-                throw new DuplicateCategoryException("A Category with the name '" + lowerCaseName +
-                        "' already exists under parent Service '" + targetService.getName() + "'");
-            } else if (targetServiceId == null && categoryRepository.existsByNameAndIdNot(lowerCaseName, categoryId)) {
+            if (categoryRepository.existsByNameAndIdNot(lowerCaseName, categoryId)) {
                 throw new DuplicateCategoryException("A Category with the name '" + lowerCaseName + "' already exists");
             }
 
@@ -378,22 +147,8 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             category.setDescription(request.getDescription());
         }
 
-        if (request.getAmount() != null) {
-            category.setAmount(request.getAmount());
-        }
-
-        if (request.getDiscount() != null) {
-            category.setDiscount(request.getDiscount());
-        }
-
-        category.calculateFinalAmount();
-
         if (request.getImageUrl() != null) {
             category.setIconUrl(request.getImageUrl());
-        }
-
-        if (request.getDisplayOrder() != null) {
-            category.setDisplayOrder(request.getDisplayOrder());
         }
 
         if (request.getStatus() != null) {
@@ -722,6 +477,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
                 .amount(amount)
                 .discount(discount)
                 .finalAmount(finalAmount)
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .imageUrl(request.getImageUrl())
                 .status(isActive ? "ACTIVE" : "INACTIVE")
                 .isActive(isActive)
@@ -807,6 +563,10 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         }
 
         variant.calculateFinalAmount();
+
+        if (request.getDisplayOrder() != null) {
+            variant.setDisplayOrder(request.getDisplayOrder());
+        }
 
         if (request.getImageUrl() != null) {
             variant.setImageUrl(request.getImageUrl());
@@ -924,6 +684,19 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     }
 
     // ==========================================
+    // 5. DATA RESET OPERATIONS
+    // ==========================================
+
+    @Override
+    @Transactional
+    public void clearAllCatalogData() {
+        variantRepository.deleteAll();
+        serviceItemRepository.deleteAll();
+        categoryRepository.deleteAll();
+        log.info("Cleared all catalog data (variants, subcategories, categories) from database.");
+    }
+
+    // ==========================================
     // HELPER METHODS
     // ==========================================
 
@@ -944,31 +717,6 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         }
     }
 
-    private ServiceResponseDTO mapToServiceResponseDTO(CatalogServiceEntity entity, boolean includeCategories) {
-        int categoriesCount = categoryRepository.countByServiceId(entity.getId());
-        List<CategoryResponseDTO> cats = null;
-
-        if (includeCategories) {
-            cats = categoryRepository.findByServiceId(entity.getId())
-                    .stream()
-                    .map(c -> mapToCategoryResponseDTO(c, true))
-                    .collect(Collectors.toList());
-        }
-
-        return ServiceResponseDTO.builder()
-                .id(entity.getId())
-                .name(entity.getName())
-                .description(entity.getDescription())
-                .imageUrl(entity.getImageUrl())
-                .displayOrder(entity.getDisplayOrder())
-                .status(entity.getStatus())
-                .categoriesCount(categoriesCount)
-                .categories(cats)
-                .createdAt(entity.getCreatedAt())
-                .updatedAt(entity.getUpdatedAt())
-                .build();
-    }
-
     private CategoryResponseDTO mapToCategoryResponseDTO(Category category, boolean includeSubCategories) {
         int subCatsCount = serviceItemRepository.countByCategoryId(category.getId());
         List<SubCategoryResponseDTO> subCats = null;
@@ -982,16 +730,10 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
 
         return CategoryResponseDTO.builder()
                 .id(category.getId())
-                .serviceId(category.getService() != null ? category.getService().getId() : null)
-                .serviceName(category.getService() != null ? category.getService().getName() : null)
                 .name(category.getName())
                 .description(category.getDescription())
-                .amount(category.getAmount() != null ? category.getAmount() : BigDecimal.ZERO)
-                .discount(category.getDiscount() != null ? category.getDiscount() : BigDecimal.ZERO)
-                .finalAmount(category.getFinalAmount() != null ? category.getFinalAmount() : BigDecimal.ZERO)
                 .imageUrl(category.getIconUrl())
                 .image(category.getIconUrl())
-                .displayOrder(category.getDisplayOrder())
                 .status(category.getStatus())
                 .isActive(category.getIsActive())
                 .subCategoriesCount(subCatsCount)
@@ -1003,21 +745,26 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
 
     private SubCategoryResponseDTO mapToSubCategoryResponseDTO(ServiceItem item) {
         Category cat = item.getCategory();
-        CatalogServiceEntity srv = (cat != null) ? cat.getService() : null;
 
-        int variantsCount = variantRepository.countBySubcategoryId(item.getId());
+        String catName = cat != null ? cat.getName() : null;
+        UUID catId = cat != null ? cat.getId() : null;
 
         return SubCategoryResponseDTO.builder()
                 .id(item.getId())
-                .categoryId(cat != null ? cat.getId() : null)
-                .categoryName(cat != null ? cat.getName() : null)
+                .parentCategory(catName)
+                .parentCategoryId(catId)
+                .categoryId(catId)
+                .categoryName(catName)
+                .subCategoryName(item.getName())
                 .name(item.getName())
                 .description(item.getDescription())
                 .amount(item.getBasePrice())
                 .basePrice(item.getBasePrice())
                 .discount(item.getDiscount())
                 .discountPrice(item.getFinalAmount())
+                .finalPrice(item.getFinalAmount())
                 .finalAmount(item.getFinalAmount())
+                .uploadImage(item.getImageUrl())
                 .imageUrl(item.getImageUrl())
                 .image(item.getImageUrl())
                 .status(item.getStatus())
@@ -1031,17 +778,31 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         ServiceItem sub = variant.getSubcategory();
         Category cat = (sub != null) ? sub.getCategory() : null;
 
+        String catName = (cat != null) ? cat.getName() : null;
+        UUID catId = (cat != null) ? cat.getId() : null;
+        String subName = (sub != null) ? sub.getName() : null;
+        Long subId = (sub != null) ? sub.getId() : null;
+
         return VariantResponseDTO.builder()
                 .id(variant.getId())
-                .subcategoryId(sub != null ? sub.getId() : null)
-                .subcategoryName(sub != null ? sub.getName() : null)
-                .categoryId(cat != null ? cat.getId() : null)
-                .categoryName(cat != null ? cat.getName() : null)
+                .parentCategory(catName)
+                .parentCategoryId(catId)
+                .categoryId(catId)
+                .categoryName(catName)
+                .parentSubCategory(subName)
+                .parentSubCategoryId(subId)
+                .subcategoryId(subId)
+                .subcategoryName(subName)
+                .variantName(variant.getName())
                 .name(variant.getName())
                 .description(variant.getDescription())
+                .basePrice(variant.getAmount())
                 .amount(variant.getAmount())
                 .discount(variant.getDiscount())
+                .finalPrice(variant.getFinalAmount())
                 .finalAmount(variant.getFinalAmount())
+                .displayOrder(variant.getDisplayOrder())
+                .variantImage(variant.getImageUrl())
                 .imageUrl(variant.getImageUrl())
                 .image(variant.getImageUrl())
                 .status(variant.getStatus())

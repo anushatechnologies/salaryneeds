@@ -2,12 +2,12 @@ package com.salaryneeds;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salaryneeds.controller.AdminCatalogController;
-import com.salaryneeds.dto.catalog.ServiceRequestDTO;
-import com.salaryneeds.dto.catalog.ServiceResponseDTO;
+import com.salaryneeds.dto.catalog.CategoryRequestDTO;
+import com.salaryneeds.dto.catalog.CategoryResponseDTO;
 import com.salaryneeds.dto.catalog.SubCategoryRequestDTO;
 import com.salaryneeds.dto.catalog.SubCategoryResponseDTO;
 import com.salaryneeds.exception.CategoryNotFoundException;
-import com.salaryneeds.exception.DuplicateCatalogServiceException;
+import com.salaryneeds.exception.DuplicateCategoryException;
 import com.salaryneeds.exception.DuplicateSubCategoryException;
 import com.salaryneeds.exception.GlobalExceptionHandler;
 import com.salaryneeds.security.AdminAuthInterceptor;
@@ -48,35 +48,35 @@ public class CatalogModuleControllerTest {
     @Test
     @DisplayName("21. Admin can access Admin Catalog APIs with ADMIN role")
     void testAdminAccessAllowed() throws Exception {
-        ServiceRequestDTO request = ServiceRequestDTO.builder()
-                .name("Home Services")
+        CategoryRequestDTO request = CategoryRequestDTO.builder()
+                .name("Home Cleaning")
                 .description("Home maintenance")
                 .build();
 
-        ServiceResponseDTO response = ServiceResponseDTO.builder()
+        CategoryResponseDTO response = CategoryResponseDTO.builder()
                 .id(UUID.randomUUID())
-                .name("home services")
+                .name("home cleaning")
                 .status("ACTIVE")
                 .build();
 
-        when(catalogManagementService.createService(any())).thenReturn(response);
+        when(catalogManagementService.createCategory(any())).thenReturn(response);
 
-        mockMvc.perform(post("/admin/services")
+        mockMvc.perform(post("/admin/categories")
                         .header("X-Role", "ADMIN")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("home services"));
+                .andExpect(jsonPath("$.name").value("home cleaning"));
     }
 
     @Test
     @DisplayName("22. Unauthorized user (USER role) cannot access Admin Catalog APIs -> 403 Forbidden")
     void testUnauthorizedUserForbidden() throws Exception {
-        ServiceRequestDTO request = ServiceRequestDTO.builder()
-                .name("Home Services")
+        CategoryRequestDTO request = CategoryRequestDTO.builder()
+                .name("Home Cleaning")
                 .build();
 
-        mockMvc.perform(post("/admin/services")
+        mockMvc.perform(post("/admin/categories")
                         .header("X-Role", "USER")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -87,11 +87,11 @@ public class CatalogModuleControllerTest {
     @Test
     @DisplayName("23. Unauthenticated request to Admin API is rejected -> 401 Unauthorized")
     void testUnauthenticatedRequestRejected() throws Exception {
-        ServiceRequestDTO request = ServiceRequestDTO.builder()
-                .name("Home Services")
+        CategoryRequestDTO request = CategoryRequestDTO.builder()
+                .name("Home Cleaning")
                 .build();
 
-        mockMvc.perform(post("/admin/services")
+        mockMvc.perform(post("/admin/categories")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
@@ -99,21 +99,21 @@ public class CatalogModuleControllerTest {
     }
 
     @Test
-    @DisplayName("Duplicate Service creation returns 409 Conflict")
-    void testDuplicateServiceReturns409() throws Exception {
-        ServiceRequestDTO request = ServiceRequestDTO.builder()
-                .name("Home Services")
+    @DisplayName("Duplicate Category creation returns 409 Conflict")
+    void testDuplicateCategoryReturns409() throws Exception {
+        CategoryRequestDTO request = CategoryRequestDTO.builder()
+                .name("Home Cleaning")
                 .build();
 
-        when(catalogManagementService.createService(any()))
-                .thenThrow(new DuplicateCatalogServiceException("A Service with the name 'home services' already exists"));
+        when(catalogManagementService.createCategory(any()))
+                .thenThrow(new DuplicateCategoryException("A Category with the name 'home cleaning' already exists"));
 
-        mockMvc.perform(post("/admin/services")
+        mockMvc.perform(post("/admin/categories")
                         .header("X-Role", "ADMIN")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("Duplicate Service"));
+                .andExpect(jsonPath("$.error").value("Duplicate Category"));
     }
 
     @Test
@@ -127,7 +127,7 @@ public class CatalogModuleControllerTest {
         when(catalogManagementService.createSubCategory(eq(categoryId), any()))
                 .thenThrow(new DuplicateSubCategoryException("A Sub-Category with the name 'ac servicing' already exists"));
 
-        mockMvc.perform(post("/admin/categories/" + categoryId + "/sub-categories")
+        mockMvc.perform(post("/admin/categories/" + categoryId + "/subcategories")
                         .header("X-Role", "ADMIN")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -146,7 +146,7 @@ public class CatalogModuleControllerTest {
         when(catalogManagementService.createSubCategory(eq(nonExistingCatId), any()))
                 .thenThrow(new CategoryNotFoundException("Category not found with ID: " + nonExistingCatId));
 
-        mockMvc.perform(post("/admin/categories/" + nonExistingCatId + "/sub-categories")
+        mockMvc.perform(post("/admin/categories/" + nonExistingCatId + "/subcategories")
                         .header("X-Role", "ADMIN")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -155,12 +155,12 @@ public class CatalogModuleControllerTest {
     }
 
     @Test
-    @DisplayName("Delete Service returns 204 No Content")
-    void testDeleteServiceReturns204() throws Exception {
-        UUID serviceId = UUID.randomUUID();
-        doNothing().when(catalogManagementService).deleteService(serviceId);
+    @DisplayName("Delete Category returns 204 No Content")
+    void testDeleteCategoryReturns204() throws Exception {
+        UUID categoryId = UUID.randomUUID();
+        doNothing().when(catalogManagementService).deleteCategory(categoryId);
 
-        mockMvc.perform(delete("/admin/services/" + serviceId)
+        mockMvc.perform(delete("/admin/categories/" + categoryId)
                         .header("X-Role", "ADMIN"))
                 .andExpect(status().isNoContent());
     }
