@@ -1050,4 +1050,14 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
                 .updatedAt(variant.getUpdatedAt())
                 .build();
     }
+
+    @Override
+    @Transactional
+    public void clearAllCatalogData() {
+        log.info("Purging all catalog data (variants, subcategories, categories, services)...");
+        variantRepository.deleteAll();
+        serviceItemRepository.deleteAll();
+        categoryRepository.deleteAll();
+        catalogServiceRepository.deleteAll();
+    }
 }

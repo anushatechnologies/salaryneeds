@@ -77,4 +77,6 @@ public interface CatalogManagementService {
     SubCategoryResponseDTO getActiveSubCategoryById(Long subCategoryId);
 
     List<VariantResponseDTO> getActiveVariantsBySubCategory(Long subCategoryId);
+
+    void clearAllCatalogData();
 }

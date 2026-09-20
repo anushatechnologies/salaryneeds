@@ -23,6 +23,26 @@ public class AdminCatalogController {
     private final FileStorageService fileStorageService;
 
     // ==========================================
+    // 0. IMAGE UPLOAD
+    // ==========================================
+
+    @PostMapping(value = "/uploads/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<java.util.Map<String, String>> uploadImage(
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "file", required = false) MultipartFile file
+    ) {
+        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        if (upload == null || upload.isEmpty()) {
+            throw new IllegalArgumentException("Image file must not be empty");
+        }
+        String imageUrl = fileStorageService.store(upload, "catalog");
+        java.util.Map<String, String> response = new java.util.HashMap<>();
+        response.put("imageUrl", imageUrl);
+        response.put("image", imageUrl);
+        return ResponseEntity.ok(response);
+    }
+
+    // ==========================================
     // 1. SERVICE (TOP LEVEL)
     // ==========================================
 
@@ -139,7 +159,12 @@ public class AdminCatalogController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status
     ) {
-        List<CategoryResponseDTO> response = catalogManagementService.getCategoriesByService(serviceId, search, status);
+        List<CategoryResponseDTO> response;
+        if (serviceId != null) {
+            response = catalogManagementService.getCategoriesByService(serviceId, search, status);
+        } else {
+            response = catalogManagementService.getAllCategories(search, status);
+        }
         return ResponseEntity.ok(response);
     }
 
@@ -184,10 +209,15 @@ public class AdminCatalogController {
     public ResponseEntity<SubCategoryResponseDTO> createSubCategoryMultipart(
             @PathVariable(required = false) UUID categoryId,
             @ModelAttribute SubCategoryRequestDTO request,
+            @RequestParam(value = "uploadImage", required = false) MultipartFile uploadImageParam,
+            @RequestParam(value = "upload_image", required = false) MultipartFile uploadImageSnake,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "file", required = false) MultipartFile file
     ) {
-        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        MultipartFile upload = uploadImageParam != null && !uploadImageParam.isEmpty() ? uploadImageParam :
+                (uploadImageSnake != null && !uploadImageSnake.isEmpty() ? uploadImageSnake :
+                (file != null && !file.isEmpty() ? file : image));
+
         if (upload != null && !upload.isEmpty()) {
             String imageUrl = fileStorageService.store(upload, "subcategories");
             request.setImageUrl(imageUrl);
@@ -273,10 +303,17 @@ public class AdminCatalogController {
     public ResponseEntity<VariantResponseDTO> createVariantMultipart(
             @PathVariable Long subCategoryId,
             @ModelAttribute VariantRequestDTO request,
+            @RequestParam(value = "variantImage", required = false) MultipartFile variantImage,
+            @RequestParam(value = "variant_image", required = false) MultipartFile variantImageSnake,
+            @RequestParam(value = "uploadImage", required = false) MultipartFile uploadImage,
             @RequestParam(value = "image", required = false) MultipartFile image,
             @RequestParam(value = "file", required = false) MultipartFile file
     ) {
-        MultipartFile upload = (file != null && !file.isEmpty()) ? file : image;
+        MultipartFile upload = variantImage != null && !variantImage.isEmpty() ? variantImage :
+                (variantImageSnake != null && !variantImageSnake.isEmpty() ? variantImageSnake :
+                (uploadImage != null && !uploadImage.isEmpty() ? uploadImage :
+                (file != null && !file.isEmpty() ? file : image)));
+
         if (upload != null && !upload.isEmpty()) {
             String imageUrl = fileStorageService.store(upload, "variants");
             request.setImageUrl(imageUrl);
@@ -331,5 +368,18 @@ public class AdminCatalogController {
     public ResponseEntity<Void> deleteVariant(@PathVariable Long variantId) {
         catalogManagementService.deleteVariant(variantId);
         return ResponseEntity.noContent().build();
+    }
+
+    // ==========================================
+    // 5. PURGE / CLEAR ALL DATABASE DATA
+    // ==========================================
+
+    @DeleteMapping({"/clear-all-data", "/catalog/clear-all", "/categories/clear-all"})
+    public ResponseEntity<java.util.Map<String, Object>> clearAllCatalogData() {
+        catalogManagementService.clearAllCatalogData();
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("success", true);
+        response.put("message", "All catalog data (categories, subcategories, variants) removed successfully from database");
+        return ResponseEntity.ok(response);
     }
 }
