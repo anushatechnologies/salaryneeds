@@ -36,11 +36,6 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Sub-Category Not Found", ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(VariantNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleVariantNotFound(VariantNotFoundException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, "Variant Not Found", ex.getMessage(), request.getRequestURI());
-    }
-
     @ExceptionHandler(AddressNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleAddressNotFound(AddressNotFoundException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Address Not Found", ex.getMessage(), request.getRequestURI());
@@ -48,7 +43,27 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BookingNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleBookingNotFound(BookingNotFoundException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, "Booking Not Found", ex.getMessage(), request.getRequestURI());
+        String uri = request != null ? request.getRequestURI() : "";
+        if (uri.contains("worker")) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", "BOOKING_NOT_FOUND");
+            response.put("message", ex.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Booking Not Found", ex.getMessage(), uri);
+    }
+
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<Map<String, Object>> handleApiException(ApiException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", ex.getStatus() != null ? ex.getStatus().value() : HttpStatus.BAD_REQUEST.value());
+        response.put("error", ex.getErrorCode() != null ? ex.getErrorCode() : "API_ERROR");
+        response.put("message", ex.getMessage());
+        response.put("path", request != null ? request.getRequestURI() : "");
+        return ResponseEntity.status(ex.getStatus() != null ? ex.getStatus() : HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(WorkerNotFoundException.class)
@@ -81,19 +96,74 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Sub-Category", ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(DuplicateVariantException.class)
-    public ResponseEntity<Map<String, Object>> handleDuplicateVariant(DuplicateVariantException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Variant", ex.getMessage(), request.getRequestURI());
-    }
-
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateEmail(DuplicateEmailException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Email", ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(DuplicatePhoneException.class)
-    public ResponseEntity<Map<String, Object>> handleDuplicatePhone(DuplicatePhoneException ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Phone", ex.getMessage(), request.getRequestURI());
+    @ExceptionHandler(PhoneAlreadyExistsException.class)
+    public ResponseEntity<Map<String, Object>> handlePhoneAlreadyExists(PhoneAlreadyExistsException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "PHONE_ALREADY_EXISTS");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(InvalidOtpException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidOtp(InvalidOtpException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "INVALID_OTP");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(AccountNotActiveException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountNotActive(AccountNotActiveException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "ACCOUNT_NOT_ACTIVE");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(LeadAlreadyClaimedException.class)
+    public ResponseEntity<Map<String, Object>> handleLeadAlreadyClaimed(LeadAlreadyClaimedException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "LEAD_ALREADY_CLAIMED");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(BookingAlreadyAssignedException.class)
+    public ResponseEntity<Map<String, Object>> handleBookingAlreadyAssigned(BookingAlreadyAssignedException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "LEAD_ALREADY_CLAIMED");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(BookingOfferNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleBookingOfferNotFound(BookingOfferNotFoundException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "BOOKING_NOT_FOUND", ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(UnprocessableStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleUnprocessableStatus(UnprocessableStatusException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "UNPROCESSABLE_STATUS");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
     }
 
     @ExceptionHandler(InvalidCatalogDataException.class)
@@ -138,11 +208,16 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 fieldErrors.put(error.getField(), error.getDefaultMessage())
         );
+        String uri = request != null ? request.getRequestURI() : "";
         response.put("timestamp", LocalDateTime.now());
         response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Validation Failed");
+        if (uri.contains("worker")) {
+            response.put("error", "INVALID_PAYLOAD");
+        } else {
+            response.put("error", "Validation Failed");
+        }
         response.put("message", "One or more request parameters failed validation");
-        response.put("path", request.getRequestURI());
+        response.put("path", uri);
         response.put("fieldErrors", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }

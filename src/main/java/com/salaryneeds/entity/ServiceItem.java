@@ -45,10 +45,6 @@ public class ServiceItem {
     @Builder.Default
     private BigDecimal basePrice = BigDecimal.ZERO;
 
-    @Column(name = "discount", precision = 10, scale = 2)
-    @Builder.Default
-    private BigDecimal discount = BigDecimal.ZERO;
-
     @Column(name = "discount_price", precision = 10, scale = 2)
     private BigDecimal discountPrice;
 
@@ -74,22 +70,6 @@ public class ServiceItem {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    public BigDecimal getAmount() {
-        return this.basePrice;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.basePrice = amount;
-    }
-
-    public String getImage() {
-        return this.imageUrl;
-    }
-
-    public void setImage(String image) {
-        this.imageUrl = image;
-    }
 
     public String getStatus() {
         return (this.isActive != null && this.isActive) ? "ACTIVE" : "INACTIVE";

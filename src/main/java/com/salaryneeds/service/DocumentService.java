@@ -22,12 +22,6 @@ public class DocumentService {
 
     private final WorkerDocumentRepository documentRepository;
 
-    @Value("${aws.s3.bucket-name:salaryneeds-kyc}")
-    private String bucketName;
-
-    @Value("${aws.s3.region:ap-south-1}")
-    private String region;
-
     public Map<String, String> generateUploadUrl(String workerId, UploadUrlRequest request) {
         if (request.getDocType() == null) {
             throw new ApiException("ERR_INVALID_DOC_TYPE", "Document type is required. Allowed types: AADHAAR_CARD, PAN_CARD", HttpStatus.BAD_REQUEST);
@@ -45,8 +39,7 @@ public class DocumentService {
 
         String filename = rawFilename.replaceAll("[^a-zA-Z0-9._-]", "_");
         String s3Key = "workers/" + workerId + "/" + filename;
-        String uploadUrl = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + s3Key +
-                "?AWSAccessKeyId=MOCK_KEY&Signature=MOCK_SIG&Expires=1800";
+        String uploadUrl = "https://storage.salaryneeds.app/documents/" + s3Key;
 
         Map<String, String> response = new HashMap<>();
         response.put("upload_url", uploadUrl);

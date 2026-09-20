@@ -23,12 +23,5 @@ public interface CatalogService {
 
     ServiceItemDTO getServiceById(Long serviceId);
 
-    // Public active catalog methods
-    List<CategoryResponseDTO> getActiveCategories();
-
-    List<SubCategoryResponseDTO> getActiveSubcategoriesByCategory(UUID categoryId);
-
-    SubCategoryResponseDTO getActiveSubcategoryById(Long subcategoryId);
-
-    List<VariantResponseDTO> getActiveVariantsBySubcategory(Long subcategoryId);
+    Map<String, Object> getCategories();
 }

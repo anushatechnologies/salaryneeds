@@ -5,4 +5,4 @@ target/
 .env
 *.log
 *.class
-uploads/
+data/

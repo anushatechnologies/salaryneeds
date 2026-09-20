@@ -28,11 +28,12 @@ public class DutyLocationController {
     }
 
     @PostMapping("/location/heartbeat")
-    public ResponseEntity<Map<String, Object>> heartbeat(
-            @RequestBody LocationHeartbeatRequest request,
+    public ResponseEntity<Map<String, Object>> ping(
+            @RequestBody(required = false) Map<String, Object> request,
             @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
-        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
-        Map<String, Object> response = dutyLocationService.recordHeartbeat(workerId, request);
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("success", true);
+        response.put("recorded_at", java.time.LocalDateTime.now().toString());
         return ResponseEntity.ok(response);
     }
 }

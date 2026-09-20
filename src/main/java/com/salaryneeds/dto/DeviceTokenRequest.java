@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 public class DeviceTokenRequest {
 
     @NotBlank(message = "Token is required")
+    @JsonAlias({"token", "device_token", "deviceToken"})
     private String token;
 
     private String platform;
