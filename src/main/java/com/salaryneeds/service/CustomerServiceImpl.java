@@ -6,6 +6,7 @@ import com.salaryneeds.entity.Customer;
 import com.salaryneeds.exception.CustomerNotFoundException;
 import com.salaryneeds.exception.DuplicateEmailException;
 import com.salaryneeds.exception.DuplicatePhoneException;
+import com.salaryneeds.exception.UnauthorizedException;
 import com.salaryneeds.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -143,6 +144,44 @@ public class CustomerServiceImpl implements CustomerService {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found with id: " + customerId));
         customerRepository.delete(customer);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CustomerLoginResponseDTO login(CustomerLoginRequestDTO request) {
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        Customer customer = customerRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+
+        if (customer.getAccountStatus() != null &&
+                ("INACTIVE".equalsIgnoreCase(customer.getAccountStatus()) ||
+                 "SUSPENDED".equalsIgnoreCase(customer.getAccountStatus()) ||
+                 "DEACTIVATED".equalsIgnoreCase(customer.getAccountStatus()))) {
+            throw new UnauthorizedException("Account is " + customer.getAccountStatus().toLowerCase() + ". Please contact support.");
+        }
+
+        String rawPassword = request.getPassword();
+        String storedHash = customer.getPasswordHash();
+        boolean passwordMatches = false;
+
+        if (storedHash != null && !storedHash.isBlank()) {
+            if (storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$") || storedHash.startsWith("$2y$")) {
+                passwordMatches = passwordEncoder.matches(rawPassword, storedHash);
+            } else {
+                // Fallback for plain-text password check if legacy/unhashed password exists
+                passwordMatches = storedHash.equals(rawPassword) || passwordEncoder.matches(rawPassword, storedHash);
+            }
+        }
+
+        if (!passwordMatches) {
+            throw new UnauthorizedException("Invalid email or password");
+        }
+
+        return CustomerLoginResponseDTO.builder()
+                .success(true)
+                .message("Login successful")
+                .customer(mapToResponseDTO(customer))
+                .build();
     }
 
     private CustomerResponseDTO mapToResponseDTO(Customer customer) {
