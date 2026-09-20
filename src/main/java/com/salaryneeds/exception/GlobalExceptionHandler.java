@@ -36,6 +36,11 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Sub-Category Not Found", ex.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(VariantNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleVariantNotFound(VariantNotFoundException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Variant Not Found", ex.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(AddressNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleAddressNotFound(AddressNotFoundException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Address Not Found", ex.getMessage(), request.getRequestURI());
@@ -74,6 +79,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateSubCategoryException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateSubCategory(DuplicateSubCategoryException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Sub-Category", ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(DuplicateVariantException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateVariant(DuplicateVariantException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "Duplicate Variant", ex.getMessage(), request.getRequestURI());
     }
 
     @ExceptionHandler(DuplicateEmailException.class)

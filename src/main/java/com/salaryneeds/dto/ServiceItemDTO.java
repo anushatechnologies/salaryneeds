@@ -22,11 +22,7 @@ public class ServiceItemDTO {
     private String description;
     private BigDecimal basePrice;
     private BigDecimal discountPrice;
-    private Integer durationMinutes;
-    private String inclusions;
-    private String exclusions;
     private String imageUrl;
-    private BigDecimal ratingAvg;
     private Boolean isActive;
     private LocalDateTime createdAt;
 }

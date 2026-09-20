@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SalaryNeeds - Catalogue Module API Specification</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            line-height: 1.5;
+            font-size: 11pt;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #1e3a8a;
+            margin: 0 0 6px 0;
+            font-size: 22pt;
+        }
+        .header .meta {
+            color: #64748b;
+            font-size: 10pt;
+        }
+        h2 {
+            color: #1e40af;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            font-size: 14pt;
+        }
+        h3 {
+            color: #0f172a;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            font-size: 12pt;
+        }
+        p {
+            margin: 0 0 10px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 8.5pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-post { background-color: #dbeafe; color: #1e40af; }
+        .badge-get { background-color: #dcfce7; color: #166534; }
+        .badge-put { background-color: #fef9c3; color: #854d0e; }
+        .badge-patch { background-color: #f3e8ff; color: #6b21a8; }
+        .badge-delete { background-color: #fee2e2; color: #991b1b; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0 16px 0;
+            font-size: 9.5pt;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 6px 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 8.5pt;
+            overflow-x: auto;
+            margin: 8px 0 14px 0;
+            font-family: 'Consolas', 'Courier New', Courier, monospace;
+        }
+        .endpoint-card {
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #2563eb;
+            background-color: #ffffff;
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            page-break-inside: avoid;
+        }
+        .endpoint-title {
+            font-weight: bold;
+            font-size: 10.5pt;
+            margin-bottom: 6px;
+        }
+        .endpoint-url {
+            font-family: monospace;
+            background-color: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 9pt;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        .info-box {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 10px 14px;
+            border-radius: 4px;
+            margin: 12px 0;
+            font-size: 9.5pt;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Catalogue Module API Specification</h1>
+        <div class="meta">
+            <strong>Platform:</strong> SalaryNeeds Backend &bull; 
+            <strong>Base URL:</strong> https://salary.hinchmart.com &bull; 
+            <strong>Roles:</strong> Admin, User, Worker &bull; 
+            <strong>Version:</strong> 1.0.0
+        </div>
+    </div>
+
+    <h2>1. System Architecture & Hierarchy</h2>
+    <p>The catalogue system implements a unified 3-tier hierarchy representing a single source of truth across all roles:</p>
+    <div class="info-box">
+        <strong>Hierarchy:</strong> Category (Tier 1) &rarr; Subcategory / Service (Tier 2) &rarr; Optional Variant (Tier 3)<br>
+        <strong>Single Source of Truth:</strong> Admin manages the catalogue. Both User and Worker applications read from the <strong>same database tables</strong> (<code>categories</code>, <code>services</code>, <code>variants</code>). No duplicate records are created for User or Worker.
+    </div>
+
+    <h2>2. Authentication & Role Authorization</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Role</th>
+                <th>Header Passed</th>
+                <th>Permissions & Access</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>ADMIN</strong></td>
+                <td><code>X-Role: ADMIN</code></td>
+                <td>Full CRUD access to <code>/api/admin/**</code>, plus read access to all catalogue views.</td>
+            </tr>
+            <tr>
+                <td><strong>USER</strong></td>
+                <td><code>X-Role: USER</code></td>
+                <td>Read-only access to active catalogue via <code>/api/user/**</code>. Cannot access Admin APIs (403 Forbidden).</td>
+            </tr>
+            <tr>
+                <td><strong>WORKER</strong></td>
+                <td><code>X-Role: WORKER</code></td>
+                <td>Read-only access to active catalogue via <code>/api/worker/**</code>. Cannot access Admin APIs (403 Forbidden).</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>3. Admin Catalogue APIs (Management)</h2>
+    <p>Admin endpoints allow creating, updating, activating, and deleting categories, subcategories, and variants.</p>
+
+    <div class="endpoint-card">
+        <div class="endpoint-title"><span class="badge badge-post">POST</span> Create Category (with Image Upload)</div>
+        <div class="endpoint-url">https://salary.hinchmart.com/api/admin/categories</div>
+        <p><strong>Content-Type:</strong> <code>multipart/form-data</code></p>
+        <p><strong>Form-Data Parameters:</strong></p>
+        <ul>
+            <li><code>name</code> (Text, Required): Category name (e.g. <code>Home Cleaning</code>)</li>
+            <li><code>description</code> (Text, Optional): Category description</li>
+            <li><code>amount</code> (Number, Optional): Base amount (default 0.00)</li>
+            <li><code>discount</code> (Number, Optional): Discount value (default 0.00)</li>
+            <li><code>displayOrder</code> (Number, Optional): Sort order (default 0)</li>
+            <li><code>status</code> (Text, Optional): <code>ACTIVE</code> or <code>INACTIVE</code></li>
+            <li><code>image</code> (File, Optional): Direct image file upload (.png, .jpg, .webp)</li>
+        </ul>
+    </div>
+
+    <div class="endpoint-card">
+        <div class="endpoint-title"><span class="badge badge-post">POST</span> Create Subcategory (with Image Upload)</div>
+        <div class="endpoint-url">https://salary.hinchmart.com/api/admin/subcategories</div>
+        <p><strong>Content-Type:</strong> <code>multipart/form-data</code></p>
+        <p><strong>Form-Data Parameters:</strong></p>
+        <ul>
+            <li><code>categoryId</code> (Text, Required): Parent Category UUID</li>
+            <li><code>name</code> (Text, Required): Subcategory name (e.g. <code>Kitchen Cleaning</code>)</li>
+            <li><code>description</code> (Text, Optional): Detailed description</li>
+            <li><code>amount</code> (Number, Required): Base price (e.g. <code>1500.00</code>)</li>
+            <li><code>discount</code> (Number, Optional): Discount (e.g. <code>10.00</code>)</li>
+            <li><code>status</code> (Text, Optional): <code>ACTIVE</code> or <code>INACTIVE</code></li>
+            <li><code>image</code> (File, Optional): Subcategory image file</li>
+        </ul>
+    </div>
+
+    <div class="endpoint-card">
+        <div class="endpoint-title"><span class="badge badge-post">POST</span> Create Optional Variant (with Image Upload)</div>
+        <div class="endpoint-url">https://salary.hinchmart.com/api/admin/subcategories/{subcategoryId}/variants</div>
+        <p><strong>Content-Type:</strong> <code>multipart/form-data</code></p>
+        <p><strong>Form-Data Parameters:</strong></p>
+        <ul>
+            <li><code>name</code> (Text, Required): Variant name (e.g. <code>1 BHK</code>, <code>2 BHK</code>)</li>
+            <li><code>description</code> (Text, Optional): Specific description</li>
+            <li><code>amount</code> (Number, Required): Variant price (e.g. <code>1500.00</code>)</li>
+            <li><code>discount</code> (Number, Optional): Discount value (e.g. <code>10.00</code>)</li>
+            <li><code>status</code> (Text, Optional): <code>ACTIVE</code> or <code>INACTIVE</code></li>
+            <li><code>image</code> (File, Optional): Variant image file</li>
+        </ul>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>4. User Catalogue APIs (Customer View)</h2>
+    <p>All User APIs require <code>X-Role: USER</code> and return only active catalogue records.</p>
+
+    <div class="endpoint-card">
+        <div class="endpoint-title"><span class="badge badge-get">GET</span> 1. Get Active Categories</div>
+        <div class="endpoint-url">https://salary.hinchmart.com/api/user/categories</div>
+        <pre>{
+  "success": true,
+  "message": "Active categories retrieved successfully",
+  "data": [
+    {
+      "id": "176d03c0-7791-44f2-96fc-f0654a2af739",
+      "name": "home cleaning",
+      "description": "Professional home cleaning services",
+      "amount": 0.00,
+      "discount": 0.00,
+      "finalAmount": 0.00,
+      "image": "https://salary.hinchmart.com/uploads/categories/home.jpg",
+      "status": "ACTIVE",
+      "isActive": true
+    }
+  ]
+}</pre>
+    </div>
+
+    <div class="endpoint-card">
+        <div class="endpoint-title"><span class="badge badge-get">GET</span> 2. Get Active Subcategories by Category ID</div>
+        <div class="endpoint-url">https://salary.hinchmart.com/api/user/categories/{categoryId}/subcategories</div>
+        <pre>{
+  "success": true,
+  "message": "Active subcategories retrieved successfully",
+  "data": [
+    {
+      "id": 10,
+      "categoryId": "176d03c0-7791-44f2-96fc-f0654a2af739",
+      "categoryName": "home cleaning",
+      "name": "kitchen cleaning",
+      "description": "Kitchen deep cleaning with oil removal",
+      "amount": 1500.00,
+      "discount": 10.00,
+      "finalAmount": 1350.00,
+      "image": "https://salary.hinchmart.com/uploads/subcategories/kitchen.jpg",
+      "status": "ACTIVE",
+      "isActive": true
+    }
+  ]
+}</pre>
+    </div>
+
+    <div class="endpoint-card">
+        <div class="endpoint-title"><span class="badge badge-get">GET</span> 3. Get Active Variants for Subcategory</div>
+        <div class="endpoint-url">https://salary.hinchmart.com/api/user/subcategories/{subcategoryId}/variants</div>
+        <pre>{
+  "success": true,
+  "message": "Active variants retrieved successfully",
+  "data": [
+    {
+      "id": 100,
+      "subcategoryId": 10,
+      "name": "1 bhk",
+      "description": "Kitchen cleaning for 1 BHK",
+      "amount": 1500.00,
+      "discount": 10.00,
+      "finalAmount": 1350.00,
+      "image": "https://salary.hinchmart.com/uploads/variants/1bhk.jpg",
+      "status": "ACTIVE"
+    },
+    {
+      "id": 101,
+      "subcategoryId": 10,
+      "name": "2 bhk",
+      "description": "Kitchen cleaning for 2 BHK",
+      "amount": 2000.00,
+      "discount": 10.00,
+      "finalAmount": 1800.00,
+      "image": "https://salary.hinchmart.com/uploads/variants/2bhk.jpg",
+      "status": "ACTIVE"
+    }
+  ]
+}</pre>
+        <p><em>Note: When a subcategory has no variants, <code>data</code> returns empty array <code>[]</code>.</em></p>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>5. Worker Catalogue APIs (Worker View)</h2>
+    <p>All Worker APIs require <code>X-Role: WORKER</code> and read the identical active catalogue dataset from the same database.</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Endpoint</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><span class="badge badge-get">GET</span></td>
+                <td><code>/api/worker/categories</code></td>
+                <td>Retrieve all active categories for worker partner app.</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-get">GET</span></td>
+                <td><code>/api/worker/categories/{categoryId}/subcategories</code></td>
+                <td>Retrieve all active subcategories under selected category.</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-get">GET</span></td>
+                <td><code>/api/worker/subcategories/{subcategoryId}</code></td>
+                <td>Retrieve full details of a specific subcategory.</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-get">GET</span></td>
+                <td><code>/api/worker/subcategories/{subcategoryId}/variants</code></td>
+                <td>Retrieve active variants (returns <code>[]</code> if none exist).</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>6. Complete Fields Dictionary</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Field Name</th>
+                <th>Type</th>
+                <th>Tier</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><code>id</code></td><td>UUID / Long</td><td>All</td><td>Primary Key identifier</td></tr>
+            <tr><td><code>name</code></td><td>String</td><td>All</td><td>Normalized lowercase item title</td></tr>
+            <tr><td><code>description</code></td><td>String</td><td>All</td><td>Service / item description</td></tr>
+            <tr><td><code>amount</code></td><td>Decimal</td><td>All</td><td>Base price before discount</td></tr>
+            <tr><td><code>discount</code></td><td>Decimal</td><td>All</td><td>Discount value (% or flat)</td></tr>
+            <tr><td><code>finalAmount</code></td><td>Decimal</td><td>All</td><td>Server-calculated final price</td></tr>
+            <tr><td><code>image</code> / <code>imageUrl</code></td><td>String</td><td>All</td><td>Public URL of the uploaded image</td></tr>
+            <tr><td><code>status</code></td><td>String</td><td>All</td><td><code>ACTIVE</code> or <code>INACTIVE</code></td></tr>
+            <tr><td><code>displayOrder</code></td><td>Integer</td><td>Category</td><td>Sorting order</td></tr>
+            <tr><td><code>categoryId</code></td><td>UUID</td><td>Subcategory</td><td>Foreign key to parent Category</td></tr>
+            <tr><td><code>subcategoryId</code></td><td>Long</td><td>Variant</td><td>Foreign key to parent Subcategory</td></tr>
+        </tbody>
+    </table>
+
+</body>
+</html>

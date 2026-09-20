@@ -20,8 +20,12 @@ public interface CatalogManagementService {
 
     void deleteService(UUID serviceId);
 
-    // --- 2. Category (Middle Level) Operations ---
+    // --- 2. Category Operations ---
+    CategoryResponseDTO createCategory(CategoryRequestDTO request);
+
     CategoryResponseDTO createCategory(UUID serviceId, CategoryRequestDTO request);
+
+    List<CategoryResponseDTO> getAllCategories(String search, String status);
 
     List<CategoryResponseDTO> getCategoriesByService(UUID serviceId, String search, String status);
 
@@ -33,16 +37,44 @@ public interface CatalogManagementService {
 
     void deleteCategory(UUID categoryId);
 
-    // --- 3. Sub-Category (Leaf Level) Operations ---
+    // --- 3. Sub-Category / Service Operations ---
+    SubCategoryResponseDTO createSubCategory(SubCategoryRequestDTO request);
+
     SubCategoryResponseDTO createSubCategory(UUID categoryId, SubCategoryRequestDTO request);
+
+    List<SubCategoryResponseDTO> getAllSubCategories(UUID categoryId, String search, String status);
 
     List<SubCategoryResponseDTO> getSubCategoriesByCategory(UUID categoryId, String status);
 
     SubCategoryResponseDTO getSubCategoryById(Long subCategoryId);
+
+    SubCategoryResponseDTO getSubCategoryById(Long subCategoryId, boolean includeVariants);
 
     SubCategoryResponseDTO updateSubCategory(Long subCategoryId, SubCategoryRequestDTO request);
 
     SubCategoryResponseDTO updateSubCategoryStatus(Long subCategoryId, String status);
 
     void deleteSubCategory(Long subCategoryId);
+
+    // --- 4. Optional Variant Operations ---
+    VariantResponseDTO createVariant(Long subCategoryId, VariantRequestDTO request);
+
+    List<VariantResponseDTO> getVariantsBySubCategory(Long subCategoryId, String status);
+
+    VariantResponseDTO getVariantById(Long variantId);
+
+    VariantResponseDTO updateVariant(Long variantId, VariantRequestDTO request);
+
+    VariantResponseDTO updateVariantStatus(Long variantId, String status);
+
+    void deleteVariant(Long variantId);
+
+    // --- 5. User & Worker Active Catalog Operations ---
+    List<CategoryResponseDTO> getActiveCategories();
+
+    List<SubCategoryResponseDTO> getActiveSubCategoriesByCategory(UUID categoryId);
+
+    SubCategoryResponseDTO getActiveSubCategoryById(Long subCategoryId);
+
+    List<VariantResponseDTO> getActiveVariantsBySubCategory(Long subCategoryId);
 }

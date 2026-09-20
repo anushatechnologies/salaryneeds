@@ -42,6 +42,9 @@ public class CatalogModuleControllerTest {
     @MockBean
     private CatalogManagementService catalogManagementService;
 
+    @MockBean
+    private com.salaryneeds.service.FileStorageService fileStorageService;
+
     @Test
     @DisplayName("21. Admin can access Admin Catalog APIs with ADMIN role")
     void testAdminAccessAllowed() throws Exception {

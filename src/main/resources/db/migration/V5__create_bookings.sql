@@ -1,7 +1,7 @@
--- V5: Create Bookings Table
+-- V5: Create Bookings Table (PostgreSQL)
 
 CREATE TABLE IF NOT EXISTS BOOKINGS (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     customer_id VARCHAR(36) NOT NULL,
     worker_id VARCHAR(36),
     service_id BIGINT NOT NULL,
@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS BOOKINGS (
     service_started_at TIMESTAMP NULL,
     service_completed_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_booking_customer_id ON BOOKINGS(customer_id);
-CREATE INDEX idx_booking_worker_id ON BOOKINGS(worker_id);
-CREATE INDEX idx_booking_status ON BOOKINGS(status);
-CREATE INDEX idx_booking_date ON BOOKINGS(booking_date);
-CREATE INDEX idx_booking_created_at ON BOOKINGS(created_at);
+CREATE INDEX IF NOT EXISTS idx_booking_customer_id ON BOOKINGS(customer_id);
+CREATE INDEX IF NOT EXISTS idx_booking_worker_id ON BOOKINGS(worker_id);
+CREATE INDEX IF NOT EXISTS idx_booking_status ON BOOKINGS(status);
+CREATE INDEX IF NOT EXISTS idx_booking_date ON BOOKINGS(booking_date);
+CREATE INDEX IF NOT EXISTS idx_booking_created_at ON BOOKINGS(created_at);
