@@ -1,5 +1,6 @@
 package com.salaryneeds.entity;
 
+import com.salaryneeds.util.CatalogNameNormalizer;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,7 +14,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "SERVICES")
+@Table(name = "SERVICES", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_services_category_name", columnNames = {"category_id", "name"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,7 +39,8 @@ public class ServiceItem {
     private String description;
 
     @Column(name = "base_price", nullable = false, precision = 10, scale = 2)
-    private BigDecimal basePrice;
+    @Builder.Default
+    private BigDecimal basePrice = BigDecimal.ZERO;
 
     @Column(name = "discount_price", precision = 10, scale = 2)
     private BigDecimal discountPrice;
@@ -69,4 +73,36 @@ public class ServiceItem {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public String getStatus() {
+        return (this.isActive != null && this.isActive) ? "ACTIVE" : "INACTIVE";
+    }
+
+    public void setStatus(String status) {
+        if ("INACTIVE".equalsIgnoreCase(status)) {
+            this.isActive = false;
+        } else {
+            this.isActive = true;
+        }
+    }
+
+    @PrePersist
+    @PreUpdate
+    public void prePersistOrUpdate() {
+        if (this.name != null) {
+            this.name = CatalogNameNormalizer.toLowerCaseNormalized(this.name);
+        }
+        if (this.basePrice == null) {
+            this.basePrice = BigDecimal.ZERO;
+        }
+        if (this.durationMinutes == null) {
+            this.durationMinutes = 60;
+        }
+        if (this.ratingAvg == null) {
+            this.ratingAvg = BigDecimal.valueOf(4.80);
+        }
+        if (this.isActive == null) {
+            this.isActive = true;
+        }
+    }
 }

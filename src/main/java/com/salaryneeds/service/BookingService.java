@@ -24,4 +24,16 @@ public interface BookingService {
     BookingResponseDTO updateBookingStatus(Long bookingId, BookingStatus status, String workerId);
 
     BookingResponseDTO verifyPin(Long bookingId, String pin);
+
+    WorkerActionResponseDTO startTravel(Long bookingId, String workerId);
+
+    WorkerActionResponseDTO workerArrived(Long bookingId, String workerId);
+
+    WorkerActionResponseDTO verifyStartPin(Long bookingId, String workerId, String pin);
+
+    WorkerActionResponseDTO completeService(Long bookingId, String workerId);
+
+    WorkerLocationResponseDTO updateWorkerLocation(Long bookingId, String workerId, WorkerLocationRequestDTO request);
+
+    WorkerLocationResponseDTO getLatestWorkerLocation(Long bookingId);
 }

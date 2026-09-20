@@ -3,6 +3,9 @@ package com.salaryneeds;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salaryneeds.controller.*;
 import com.salaryneeds.dto.*;
+import com.salaryneeds.entity.Address;
+import com.salaryneeds.entity.Booking;
+import com.salaryneeds.entity.Customer;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.entity.enums.DiscountType;
 import com.salaryneeds.exception.*;
@@ -14,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -22,6 +26,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,7 +58,7 @@ class AllApisEdgeCaseIntegrationTest {
     private CouponService couponService;
 
     @Mock
-    private CatalogService catalogService;
+    private CatalogManagementService catalogManagementService;
 
     @Mock
     private WorkerDiscoveryService workerDiscoveryService;
@@ -71,7 +76,7 @@ class AllApisEdgeCaseIntegrationTest {
     private CouponController couponController;
 
     @InjectMocks
-    private CatalogController catalogController;
+    private AdminCatalogController adminCatalogController;
 
     @InjectMocks
     private WorkerDiscoveryController workerDiscoveryController;
@@ -104,7 +109,7 @@ class AllApisEdgeCaseIntegrationTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 
-        catalogMockMvc = MockMvcBuilders.standaloneSetup(catalogController)
+        catalogMockMvc = MockMvcBuilders.standaloneSetup(adminCatalogController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 
@@ -619,21 +624,22 @@ class AllApisEdgeCaseIntegrationTest {
     // ==========================================
 
     @Test
-    @DisplayName("Edge Case 3.1: Browse categories with active services count (200 OK)")
-    void testGetCategories() throws Exception {
-        List<CategoryDTO> categories = List.of(
-                CategoryDTO.builder().id(categoryId).name("Home Cleaning").description("Cleaning Services").servicesCount(2).isActive(true).build()
-        );
+    @DisplayName("Edge Case 3.1: Browse active services via Admin Catalog API (200 OK)")
+    void testGetServices() throws Exception {
+        com.salaryneeds.dto.catalog.ServiceResponseDTO service = com.salaryneeds.dto.catalog.ServiceResponseDTO.builder()
+                .id(UUID.randomUUID())
+                .name("cleaning")
+                .status("ACTIVE")
+                .build();
 
-        when(catalogService.getAllCategories()).thenReturn(categories);
+        when(catalogManagementService.getAllServices(isNull(), eq("ACTIVE"))).thenReturn(List.of(service));
 
-        MvcResult result = catalogMockMvc.perform(get("/api/catalog/categories"))
+        MvcResult result = catalogMockMvc.perform(get("/admin/services").param("status", "ACTIVE"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Home Cleaning"))
-                .andExpect(jsonPath("$[0].servicesCount").value(2))
+                .andExpect(jsonPath("$[0].name").value("cleaning"))
                 .andReturn();
 
-        System.out.println("\n[RESPONSE 3.1] Catalog Categories:\n" + result.getResponse().getContentAsString());
+        System.out.println("\n[RESPONSE 3.1] Admin Catalog Services:\n" + result.getResponse().getContentAsString());
     }
 
     @Test

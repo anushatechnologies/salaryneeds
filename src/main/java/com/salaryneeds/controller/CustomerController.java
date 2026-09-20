@@ -1,8 +1,6 @@
 package com.salaryneeds.controller;
 
 import com.salaryneeds.dto.CustomerCreateRequestDTO;
-import com.salaryneeds.dto.CustomerLoginRequestDTO;
-import com.salaryneeds.dto.CustomerLoginResponseDTO;
 import com.salaryneeds.dto.CustomerResponseDTO;
 import com.salaryneeds.dto.CustomerUpdateRequestDTO;
 import com.salaryneeds.dto.PageResponseDTO;
@@ -30,11 +28,6 @@ public class CustomerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(customerService.createCustomer(request));
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<CustomerLoginResponseDTO> login(@Valid @RequestBody CustomerLoginRequestDTO request) {
-        return ResponseEntity.ok(customerService.login(request));
-    }
-
     @GetMapping
     public ResponseEntity<?> getAllCustomers(
             @RequestParam(defaultValue = "0") int page,
@@ -46,6 +39,11 @@ public class CustomerController {
         Pageable pageable = PageRequest.of(page, size, sort);
         PageResponseDTO<CustomerResponseDTO> response = customerService.getCustomersPaginated(pageable);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/by-phone")
+    public ResponseEntity<CustomerResponseDTO> getCustomerByPhone(@RequestParam String phone) {
+        return ResponseEntity.ok(customerService.getCustomerByPhone(phone));
     }
 
     @GetMapping("/{customerId}")

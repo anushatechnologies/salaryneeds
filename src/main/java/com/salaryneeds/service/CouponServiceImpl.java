@@ -3,6 +3,7 @@ package com.salaryneeds.service;
 import com.salaryneeds.dto.CouponValidateRequestDTO;
 import com.salaryneeds.dto.CouponValidationResponseDTO;
 import com.salaryneeds.entity.Coupon;
+import com.salaryneeds.exception.CouponNotFoundException;
 import com.salaryneeds.repository.CouponRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

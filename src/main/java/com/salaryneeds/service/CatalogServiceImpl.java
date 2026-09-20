@@ -4,6 +4,7 @@ import com.salaryneeds.dto.CategoryDTO;
 import com.salaryneeds.dto.ServiceItemDTO;
 import com.salaryneeds.entity.Category;
 import com.salaryneeds.entity.ServiceItem;
+import com.salaryneeds.exception.CategoryNotFoundException;
 import com.salaryneeds.exception.ServiceNotFoundException;
 import com.salaryneeds.repository.CategoryRepository;
 import com.salaryneeds.repository.ServiceItemRepository;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -25,16 +27,23 @@ public class CatalogServiceImpl implements CatalogService {
 
     @Override
     public List<CategoryDTO> getAllCategories() {
-        return categoryRepository.findAllByIsActiveTrueOrderByDisplayOrderAsc()
+        return categoryRepository.findByIsActiveOrderByDisplayOrderAscNameAsc(true)
                 .stream()
                 .map(this::mapCategoryToDTO)
                 .collect(Collectors.toList());
     }
 
     @Override
+    public CategoryDTO getCategoryById(UUID categoryId) {
+        Category category = categoryRepository.findByIdAndIsActiveTrue(categoryId)
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + categoryId));
+        return mapCategoryToDTO(category);
+    }
+
+    @Override
     public List<ServiceItemDTO> getServicesByCategory(UUID categoryId) {
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ServiceNotFoundException("Category not found with id: " + categoryId));
+        Category category = categoryRepository.findByIdAndIsActiveTrue(categoryId)
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + categoryId));
 
         return serviceItemRepository.findByCategoryIdAndIsActiveTrue(category.getId())
                 .stream()
@@ -58,7 +67,7 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     private CategoryDTO mapCategoryToDTO(Category category) {
-        List<ServiceItem> services = serviceItemRepository.findByCategoryIdAndIsActiveTrue(category.getId());
+        int servicesCount = serviceItemRepository.countByCategoryIdAndIsActiveTrue(category.getId());
         return CategoryDTO.builder()
                 .id(category.getId())
                 .name(category.getName())
@@ -66,7 +75,7 @@ public class CatalogServiceImpl implements CatalogService {
                 .iconUrl(category.getIconUrl())
                 .displayOrder(category.getDisplayOrder())
                 .isActive(category.getIsActive())
-                .servicesCount(services.size())
+                .servicesCount(servicesCount)
                 .createdAt(category.getCreatedAt())
                 .build();
     }
@@ -88,5 +97,13 @@ public class CatalogServiceImpl implements CatalogService {
                 .isActive(item.getIsActive())
                 .createdAt(item.getCreatedAt())
                 .build();
+    }
+
+    @Override
+    public Map<String, Object> getCategories() {
+        List<CategoryDTO> categories = getAllCategories();
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("categories", categories);
+        return response;
     }
 }

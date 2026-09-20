@@ -3,8 +3,13 @@ name: SalaryNeeds CI/CD
 on:
   push:
     branches:
-      - master
       - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
@@ -29,7 +34,7 @@ jobs:
       - name: Build application
         run: mvn clean package -DskipTests
 
-      # 4. Stop application and remove old JAR
+      # 4. Stop application and prepare EC2 directory
       - name: Prepare EC2
         uses: appleboy/ssh-action@v1
         with:
@@ -40,16 +45,14 @@ jobs:
             echo "Stopping SalaryNeeds..."
             sudo systemctl stop salaryneeds || true
 
-            echo "Ensuring directory exists and setting permissions..."
+            echo "Ensuring directory exists with proper permissions..."
             sudo mkdir -p /opt/salaryneeds
             sudo chown -R ec2-user:ec2-user /opt/salaryneeds
+            sudo chmod 755 /opt/salaryneeds
 
             echo "Removing old JAR..."
             sudo rm -f /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
             sudo rm -rf /opt/salaryneeds/target
-
-            echo "Checking directory..."
-            ls -lh /opt/salaryneeds
 
       # 5. Copy new JAR directly to EC2
       - name: Copy JAR to EC2
@@ -71,45 +74,32 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Locate deployed JAR anywhere under /opt/salaryneeds or /home/ec2-user
-            FOUND_JAR=$(find /opt/salaryneeds /home/ec2-user -name "salaryneeds*.jar" 2>/dev/null | head -n 1)
-            if [ -n "$FOUND_JAR" ] && [ "$FOUND_JAR" != "/opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar" ]; then
-              echo "Found JAR at $FOUND_JAR, moving to /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar"
-              sudo mv -f "$FOUND_JAR" /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
-            fi
-
             echo "Checking deployed JAR..."
-            ls -lh /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar || true
+            ls -lh /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
-            echo "Setting ownership and permissions..."
-            sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar || true
-            sudo chmod 755 /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar || true
+            echo "Setting ownership..."
+            sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+            sudo chmod 755 /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
-            echo "Restarting SalaryNeeds service..."
-            sudo systemctl daemon-reload
+            echo "Starting SalaryNeeds..."
             sudo systemctl restart salaryneeds
 
-            echo "Polling application health on port 8080 (up to 120s)..."
-            SUCCESS=0
+            echo "Waiting for application to become healthy..."
+            HEALTHY=0
             for i in {1..24}; do
-              if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1 || curl -sf http://localhost:8080/api/catalog/categories > /dev/null 2>&1; then
-                echo "Application is UP and responding! (verified on attempt $i)"
-                SUCCESS=1
+              if curl -s -f http://localhost:8080/actuator/health > /dev/null; then
+                echo "Application is healthy!"
+                curl http://localhost:8080/actuator/health
+                HEALTHY=1
                 break
               fi
-              echo "Waiting for Spring Boot to complete startup... (attempt $i/24, sleeping 5s)"
+              echo "Waiting for app to start... ($i/24)"
               sleep 5
             done
 
-            echo "Checking service status..."
-            sudo systemctl status salaryneeds -l --no-pager || true
-
-            echo "Checking recent application logs..."
-            sudo journalctl -u salaryneeds -n 60 --no-pager || true
-
-            if [ $SUCCESS -eq 0 ]; then
-              echo "ERROR: Application did not become healthy within 120 seconds!"
+            if [ $HEALTHY -eq 0 ]; then
+              echo "Health check failed! Service status and recent logs:"
+              sudo systemctl status salaryneeds -l --no-pager || true
+              sudo journalctl -u salaryneeds.service -n 50 --no-pager || true
               exit 1
             fi
-
-            echo "Deployment SUCCESSFUL! SalaryNeeds application is healthy."

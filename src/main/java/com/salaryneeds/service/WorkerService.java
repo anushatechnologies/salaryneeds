@@ -3,6 +3,7 @@ package com.salaryneeds.service;
 import com.salaryneeds.dto.*;
 import com.salaryneeds.entity.Category;
 import com.salaryneeds.entity.WorkerProfile;
+import com.salaryneeds.entity.enums.AccountStatus;
 import com.salaryneeds.repository.CategoryRepository;
 import com.salaryneeds.repository.WorkerProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,9 +40,7 @@ public class WorkerService {
 
         WorkerProfile worker = WorkerProfile.builder()
                 .name(request.getName())
-                // Use a dummy email/password since the schema requires it currently, 
-                // or we can just leave it if we update the entity
-                .email(request.getPhone() + "@dummy.com") 
+                .email(request.getPhone() + "@dummy.com")
                 .passwordHash("dummy-hash")
                 .phone(request.getPhone())
                 .category(category)
@@ -52,7 +51,7 @@ public class WorkerService {
                 .verified(false)
                 .emailVerified(false)
                 .phoneVerified(true)
-                .accountStatus("ACTIVE")
+                .accountStatus(AccountStatus.ACTIVE)
                 .build();
 
         worker = workerProfileRepository.save(worker);
@@ -67,19 +66,17 @@ public class WorkerService {
         WorkerProfile worker = workerProfileRepository.findByPhone(request.getPhone())
                 .orElseThrow(() -> new RuntimeException("Worker not found"));
 
-        // Dummy OTP validation for now
         if (!"1234".equals(request.getOtp())) {
             throw new RuntimeException("Invalid OTP");
         }
 
-        // Generate dummy JWT token for now
         String token = "dummy-jwt-token-for-" + worker.getId();
 
         return WorkerLoginResponse.builder()
                 .token(token)
                 .worker_id(worker.getId())
                 .verified(worker.getVerified())
-                .account_status(worker.getAccountStatus())
+                .account_status(worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "ACTIVE")
                 .build();
     }
 
@@ -105,7 +102,7 @@ public class WorkerService {
 
         return WorkerStatusResponse.builder()
                 .verified(worker.getVerified())
-                .account_status(worker.getAccountStatus())
+                .account_status(worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "ACTIVE")
                 .build();
     }
 
@@ -116,7 +113,7 @@ public class WorkerService {
         worker.setLastLat(request.getLat());
         worker.setLastLng(request.getLng());
         worker.setLastSeenAt(LocalDateTime.now());
-        
+
         workerProfileRepository.save(worker);
     }
 }

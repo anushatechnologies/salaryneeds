@@ -1,8 +1,8 @@
 {
 	"info": {
-		"_postman_id": "c1f72b9a-4c2e-4b2a-a912-salaryneeds-prod",
-		"name": "SalaryNeeds - Complete Customer & Booking APIs",
-		"description": "Production-grade Postman collection for SalaryNeeds platform containing Customer Profile, Address Management, Service Catalog, Worker Discovery, and Booking Lifecycle RESTful APIs.",
+		"_postman_id": "c7f9a12c-b8e1-4c2d-9a63-salaryneeds-v2",
+		"name": "SalaryNeeds Partner Operations - Backend API v2.0",
+		"description": "Complete Postman collection for SalaryNeeds Partner/Technician Operations Backend API Specification (Version 2.0). Covers Authentication, Duty & GPS Telemetry, Dispatch Radar, Doorstep Job State Machine, Extra Parts, Checklists, Completion OTP, Schedule Roster, Wallet Ledger, Nightly Bank Settlement, KYC Documents, Reviews, and Push Notifications.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -12,42 +12,27 @@
 			"type": "string"
 		},
 		{
-			"key": "customerId",
-			"value": "550e8400-e29b-41d4-a716-446655440000",
-			"type": "string"
-		},
-		{
-			"key": "addressId",
-			"value": "a1111111-1111-1111-1111-111111111111",
-			"type": "string"
-		},
-		{
-			"key": "categoryId",
-			"value": "11111111-1111-1111-1111-111111111111",
-			"type": "string"
-		},
-		{
-			"key": "serviceId",
-			"value": "1",
+			"key": "token",
+			"value": "",
 			"type": "string"
 		},
 		{
 			"key": "workerId",
-			"value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+			"value": "w-7f9a12c4-b8e1-4c2d-9a63-3e1b7f9a12c4",
 			"type": "string"
 		},
 		{
 			"key": "bookingId",
-			"value": "1",
+			"value": "SNB-99231",
 			"type": "string"
 		}
 	],
 	"item": [
 		{
-			"name": "Domain 1: Customer Profile & Multi-Address Management",
+			"name": "Module A: Authentication & Worker Profile",
 			"item": [
 				{
-					"name": "1. Register Customer",
+					"name": "1. Register Worker Profile",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -58,80 +43,17 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"email\": \"ananya.sharma@example.com\",\n  \"phone\": \"9876543299\",\n  \"password\": \"Secret@123\",\n  \"defaultAddress\": \"Flat 302, Green Meadows, Gachibowli, Hyderabad\"\n}"
+							"raw": "{\n  \"name\": \"Rajesh Sharma\",\n  \"phone\": \"9876543210\",\n  \"email\": \"rajesh.sharma@example.com\",\n  \"trade\": \"AC Technician\",\n  \"categoryId\": \"cat-ac-hvac\",\n  \"categoryName\": \"AC & HVAC\",\n  \"subCategoryId\": \"sub-split-ac\",\n  \"subCategoryName\": \"Split AC Servicing\",\n  \"experienceYears\": 5,\n  \"pincode\": \"500072\",\n  \"city\": \"Hyderabad\",\n  \"address\": \"Flat 304, Green Heights, Kukatpally\",\n  \"serviceAreas\": [\"500072\", \"500081\", \"500084\"],\n  \"skills\": [\"Split AC Repair\", \"Gas Refill\", \"PCB Diagnostic\"]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/customers",
+							"raw": "{{baseUrl}}/worker/auth/register",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers"]
+							"path": ["worker", "auth", "register"]
 						}
 					}
 				},
 				{
-					"name": "2. Get Paginated Customers (Admin/Support)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/customers?page=0&size=10&sortBy=createdAt&direction=desc",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers"],
-							"query": [
-								{ "key": "page", "value": "0" },
-								{ "key": "size", "value": "10" },
-								{ "key": "sortBy", "value": "createdAt" },
-								{ "key": "direction", "value": "desc" }
-							]
-						}
-					}
-				},
-				{
-					"name": "3. Get Customer by ID (With Addresses)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/customers/{{customerId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers", "{{customerId}}"]
-						}
-					}
-				},
-				{
-					"name": "4. Update Customer Profile",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Pavan Kumar V\",\n  \"email\": \"pavan@example.com\",\n  \"phone\": \"9876543210\",\n  \"defaultAddress\": \"Flat 402, Lotus Heights, Ayyappa Society Main Road, Madhapur, Hyderabad - 500081\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/customers/{{customerId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers", "{{customerId}}"]
-						}
-					}
-				},
-				{
-					"name": "5. Deactivate Customer Account",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/customers/{{customerId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers", "{{customerId}}"]
-						}
-					}
-				},
-				{
-					"name": "6. Add New Address",
+					"name": "2. Send 4-Digit SMS OTP",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -142,43 +64,34 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"label\": \"Home\",\n  \"house\": \"Villa 12, Palm Meadows\",\n  \"street\": \"Financial District Road\",\n  \"addressLine\": \"Villa 12, Palm Meadows, Financial District Road\",\n  \"city\": \"Hyderabad\",\n  \"pincode\": \"500032\",\n  \"lat\": 17.4123,\n  \"lng\": 78.3456,\n  \"isDefault\": true\n}"
+							"raw": "{\n  \"phone\": \"9876543210\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses",
+							"raw": "{{baseUrl}}/worker/auth/send-otp",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers", "{{customerId}}", "addresses"]
+							"path": ["worker", "auth", "send-otp"]
 						}
 					}
 				},
 				{
-					"name": "7. List Saved Addresses",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers", "{{customerId}}", "addresses"]
+					"name": "3. Worker Login (Validate OTP & Get Token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set('token', jsonData.token);",
+									"    pm.collectionVariables.set('workerId', jsonData.worker.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
 						}
-					}
-				},
-				{
-					"name": "8. Get Address by ID",
+					],
 					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses/{{addressId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers", "{{customerId}}", "addresses", "{{addressId}}"]
-						}
-					}
-				},
-				{
-					"name": "9. Update Address",
-					"request": {
-						"method": "PUT",
+						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -187,335 +100,555 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"label\": \"Home\",\n  \"house\": \"Flat 402-B, Lotus Heights\",\n  \"street\": \"Ayyappa Society Main Road\",\n  \"city\": \"Hyderabad\",\n  \"pincode\": \"500081\",\n  \"isDefault\": true\n}"
+							"raw": "{\n  \"username\": \"9876543210\",\n  \"otp\": \"4829\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses/{{addressId}}",
+							"raw": "{{baseUrl}}/worker/auth/login",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers", "{{customerId}}", "addresses", "{{addressId}}"]
+							"path": ["worker", "auth", "login"]
 						}
 					}
 				},
 				{
-					"name": "10. Set Default Address Explicitly",
+					"name": "4. Get Authenticated Worker Profile",
 					"request": {
-						"method": "PUT",
-						"header": [],
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							}
+						],
 						"url": {
-							"raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses/{{addressId}}/default",
+							"raw": "{{baseUrl}}/worker/profile/me",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers", "{{customerId}}", "addresses", "{{addressId}}", "default"]
-						}
-					}
-				},
-				{
-					"name": "11. Delete Address (With Fallback Promotion)",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/customers/{{customerId}}/addresses/{{addressId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "customers", "{{customerId}}", "addresses", "{{addressId}}"]
+							"path": ["worker", "profile", "me"]
 						}
 					}
 				}
 			]
 		},
 		{
-			"name": "Domain 2: Customer Booking, Slots & Coupon Lifecycle",
+			"name": "Module B: Duty Toggle & Location Tracking",
 			"item": [
 				{
-					"name": "1. Get Dynamic Scheduling Slots",
+					"name": "1. Toggle Duty Status (Online/Offline)",
 					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/bookings/slots?service_id=1&date=2026-09-20",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "bookings", "slots"],
-							"query": [
-								{ "key": "service_id", "value": "1" },
-								{ "key": "date", "value": "2026-09-20" }
-							]
-						}
-					}
-				},
-				{
-					"name": "2. Validate Promo Code",
-					"request": {
-						"method": "POST",
+						"method": "PATCH",
 						"header": [
 							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"code\": \"WELCOME50\",\n  \"orderAmount\": 1499.00,\n  \"serviceId\": 1,\n  \"customerId\": \"{{customerId}}\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/coupons/validate",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "coupons", "validate"]
-						}
-					}
-				},
-				{
-					"name": "3. Create Service Booking",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
 							},
 							{
-								"key": "X-Customer-Id",
-								"value": "{{customerId}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"serviceId\": 1,\n  \"serviceName\": \"Deep Home Cleaning\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"bookingDate\": \"2026-09-20\",\n  \"slotId\": \"SLOT-0912\",\n  \"scheduledTime\": \"09:00 AM - 12:00 PM\",\n  \"totalAmount\": 1499.00,\n  \"addressId\": \"{{addressId}}\",\n  \"couponCode\": \"WELCOME50\",\n  \"notes\": \"Please bring pet-safe chemical cleaning agents.\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/bookings",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "bookings"]
-						}
-					}
-				},
-				{
-					"name": "4. Customer Booking History (Status Tab: UPCOMING)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "X-Customer-Id",
-								"value": "{{customerId}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/api/bookings?status=UPCOMING&page=0&size=10",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "bookings"],
-							"query": [
-								{ "key": "status", "value": "UPCOMING" },
-								{ "key": "page", "value": "0" },
-								{ "key": "size", "value": "10" }
-							]
-						}
-					}
-				},
-				{
-					"name": "5. View Booking Details (PIN Masked unless ARRIVED)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "X-Customer-Id",
-								"value": "{{customerId}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "bookings", "{{bookingId}}"]
-						}
-					}
-				},
-				{
-					"name": "6. Simulate Worker Arrival (Status -> ARRIVED)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"status\": \"ARRIVED\",\n  \"workerId\": \"{{workerId}}\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}/status",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "bookings", "{{bookingId}}", "status"]
-						}
-					}
-				},
-				{
-					"name": "7. View Booking Details After Arrival (PIN Revealed!)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "X-Customer-Id",
-								"value": "{{customerId}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "bookings", "{{bookingId}}"]
-						}
-					}
-				},
-				{
-					"name": "8. Verify 4-Digit Start PIN (Starts Service -> IN_PROGRESS)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"pin\": \"1234\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}/verify-pin",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "bookings", "{{bookingId}}", "verify-pin"]
-						}
-					}
-				},
-				{
-					"name": "9. Regenerate Start PIN",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "X-Customer-Id",
-								"value": "{{customerId}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}/regenerate-pin",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "bookings", "{{bookingId}}", "regenerate-pin"]
-						}
-					}
-				},
-				{
-					"name": "10. Cancel Booking with Policy Evaluation",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
 							},
 							{
-								"key": "X-Customer-Id",
-								"value": "{{customerId}}"
+								"key": "Content-Type",
+								"value": "application/json"
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"reason\": \"Need to reschedule for next week due to sudden travel\",\n  \"comments\": \"Please refund to original payment source\"\n}"
+							"raw": "{\n  \"duty_online\": true\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}/cancel",
+							"raw": "{{baseUrl}}/worker/profile/duty",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "bookings", "{{bookingId}}", "cancel"]
+							"path": ["worker", "profile", "duty"]
+						}
+					}
+				},
+				{
+					"name": "2. Periodic Location Telemetry Ping",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"lat\": 17.4933,\n  \"lng\": 78.3995,\n  \"speed\": 24.5,\n  \"heading\": 185.0,\n  \"active_booking_id\": \"{{bookingId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/location/ping",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "location", "ping"]
 						}
 					}
 				}
 			]
 		},
 		{
-			"name": "Domain 3: Worker Discovery & Service Catalog",
+			"name": "Module C: Bookings & Dispatch Management",
 			"item": [
 				{
-					"name": "1. Browse Active Categories",
+					"name": "1. Get Nearby Radar Leads (5 km radius)",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							}
+						],
 						"url": {
-							"raw": "{{baseUrl}}/api/catalog/categories",
+							"raw": "{{baseUrl}}/worker/bookings/nearby-leads?lat=17.4933&lng=78.3995&radius_km=5",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "catalog", "categories"]
-						}
-					}
-				},
-				{
-					"name": "2. List Services by Category",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/catalog/services?category_id={{categoryId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "catalog", "services"],
+							"path": ["worker", "bookings", "nearby-leads"],
 							"query": [
-								{ "key": "category_id", "value": "{{categoryId}}" }
+								{ "key": "lat", "value": "17.4933" },
+								{ "key": "lng", "value": "78.3995" },
+								{ "key": "radius_km", "value": "5" }
 							]
 						}
 					}
 				},
 				{
-					"name": "3. Get Single Service Details",
+					"name": "2. Claim / Accept Dispatch Lead",
 					"request": {
-						"method": "GET",
-						"header": [],
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							}
+						],
 						"url": {
-							"raw": "{{baseUrl}}/api/catalog/services/{{serviceId}}",
+							"raw": "{{baseUrl}}/worker/bookings/{{bookingId}}/accept",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "catalog", "services", "{{serviceId}}"]
+							"path": ["worker", "bookings", "{{bookingId}}", "accept"]
 						}
 					}
 				},
 				{
-					"name": "4. Search Workers with Filters",
+					"name": "3. Decline Dispatch Lead",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Vehicle Breakdown / Flat Tire\",\n  \"notes\": \"Flat tire on highway, cannot reach on time\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/bookings/{{bookingId}}/decline",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "bookings", "{{bookingId}}", "decline"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Module D: Job Execution & Customer OTP",
+			"item": [
+				{
+					"name": "1. Get Booking Console Details",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							}
+						],
 						"url": {
-							"raw": "{{baseUrl}}/api/workers/search?pincode=500081&minRating=4.5&dutyOnline=true&page=0&size=10",
+							"raw": "{{baseUrl}}/worker/bookings/{{bookingId}}",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "workers", "search"],
+							"path": ["worker", "bookings", "{{bookingId}}"]
+						}
+					}
+				},
+				{
+					"name": "2. Advance State -> EN_ROUTE",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"EN_ROUTE\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/bookings/{{bookingId}}/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "bookings", "{{bookingId}}", "status"]
+						}
+					}
+				},
+				{
+					"name": "3. Advance State -> ARRIVED",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"ARRIVED\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/bookings/{{bookingId}}/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "bookings", "{{bookingId}}", "status"]
+						}
+					}
+				},
+				{
+					"name": "4. Advance State -> IN_PROGRESS",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"IN_PROGRESS\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/bookings/{{bookingId}}/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "bookings", "{{bookingId}}", "status"]
+						}
+					}
+				},
+				{
+					"name": "5. Add Replacement Part to Bill",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Capacitor 45uF 440V\",\n  \"price\": 380.00\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/bookings/{{bookingId}}/extra-parts",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "bookings", "{{bookingId}}", "extra-parts"]
+						}
+					}
+				},
+				{
+					"name": "6. Verify Customer 4-Digit OTP & Complete Job",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"otp\": \"6742\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/bookings/{{bookingId}}/verify-otp",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "bookings", "{{bookingId}}", "verify-otp"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Module E: Work Schedule & Time Slots",
+			"item": [
+				{
+					"name": "1. Get Schedule & 6 Fixed Duty Slots",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/worker/schedule?date=today",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "schedule"],
 							"query": [
-								{ "key": "pincode", "value": "500081" },
-								{ "key": "minRating", "value": "4.5" },
-								{ "key": "dutyOnline", "value": "true" },
-								{ "key": "page", "value": "0" },
-								{ "key": "size", "value": "10" }
+								{ "key": "date", "value": "today" }
 							]
 						}
 					}
-				},
+				}
+			]
+		},
+		{
+			"name": "Module F: Worker Earnings & Automated Bank Settlement",
+			"item": [
 				{
-					"name": "5. Get Recommended Workers for Pincode",
+					"name": "1. Get Earnings Revenue & Bank Details",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							}
+						],
 						"url": {
-							"raw": "{{baseUrl}}/api/workers/recommended?pincode=500081&categoryId={{categoryId}}&limit=5",
+							"raw": "{{baseUrl}}/worker/wallet",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "workers", "recommended"],
-							"query": [
-								{ "key": "pincode", "value": "500081" },
-								{ "key": "categoryId", "value": "{{categoryId}}" },
-								{ "key": "limit", "value": "5" }
-							]
+							"path": ["worker", "wallet"]
 						}
 					}
 				},
 				{
-					"name": "6. Public Worker Profile",
+					"name": "2. Link / Update Bank Account",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bank_name\": \"HDFC Bank\",\n  \"account_number\": \"50100234899142\",\n  \"ifsc\": \"HDFC0001248\",\n  \"account_holder\": \"Rajesh Sharma\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/bank/update",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "bank", "update"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Module G: Documents & KYC Verification",
+			"item": [
+				{
+					"name": "1. Request S3 Pre-Signed Upload URL",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"doc_type\": \"AADHAAR_CARD\",\n  \"filename\": \"aadhaar_front.jpg\",\n  \"content_type\": \"image/jpeg\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/documents/upload-url",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "documents", "upload-url"]
+						}
+					}
+				},
+				{
+					"name": "2. Confirm Document Upload",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"doc_type\": \"AADHAAR_CARD\",\n  \"s3_key\": \"workers/{{workerId}}/aadhaar_front.jpg\",\n  \"file_size_bytes\": 1420500,\n  \"original_filename\": \"aadhaar_front.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/documents",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "documents"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Module H: Reviews & Ratings",
+			"item": [
+				{
+					"name": "1. Get Ratings & Reviews",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							}
+						],
 						"url": {
-							"raw": "{{baseUrl}}/api/workers/{{workerId}}/profile",
+							"raw": "{{baseUrl}}/worker/reviews",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "workers", "{{workerId}}", "profile"]
+							"path": ["worker", "reviews"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Module I: Notifications & Device Push",
+			"item": [
+				{
+					"name": "1. Register Expo Push / FCM Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "X-Worker-Id",
+								"value": "{{workerId}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]\",\n  \"platform\": \"android\",\n  \"device_name\": \"OnePlus Nord 2\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/worker/devices/register-token",
+							"host": ["{{baseUrl}}"],
+							"path": ["worker", "devices", "register-token"]
 						}
 					}
 				}
