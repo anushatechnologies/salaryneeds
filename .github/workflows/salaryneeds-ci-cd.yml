@@ -76,7 +76,7 @@ jobs:
           script: |
             echo "Configuring Supabase PostgreSQL environment on EC2..."
             SUPABASE_SECRET="${{ secrets.SUPABASE_DB_PASSWORD }}"
-            DB_PASS="${SUPABASE_SECRET:-SalaryNeeds@123}"
+            DB_PASS="${SUPABASE_SECRET:-Salaryneeds12@}"
             sudo mkdir -p /opt/salaryneeds
             printf "DB_URL=jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require&prepareThreshold=0\nDB_USER=postgres.jbgctbgqymrdurkumwes\nDB_PASSWORD=%s\nDB_DRIVER=org.postgresql.Driver\nSPRING_JPA_HIBERNATE_DDL_AUTO=update\nSERVER_PORT=8080\n" "$DB_PASS" | sudo tee /opt/salaryneeds/salaryneeds.env > /dev/null
             sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds.env
