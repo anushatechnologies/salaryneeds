@@ -210,8 +210,13 @@ public class WorkerService {
                 .panNumber(panNumber)
                 .aadharUrl(aadharDocUrl)
                 .panUrl(panDocUrl)
+                .accountStatus("PENDING_APPROVAL")
+                .canAccessDashboard(false)
+                .isApproved(false)
+                .statusMessage("Your documents are under review by the admin team. You will be able to access the dashboard once approved.")
                 .build();
     }
+
 
     public java.util.Map<String, Object> uploadWorkerDocuments(String workerId, MultipartFile aadharFile, MultipartFile panFile, String aadharNumber, String panNumber, String aadharUrl, String panUrl) {
         UUID id = com.salaryneeds.util.UuidUtil.parseUuid(workerId);
@@ -415,6 +420,12 @@ public class WorkerService {
         data.put("verified", false);
         data.put("duty_online", false);
         data.put("account_status", "PENDING_APPROVAL");
+        data.put("can_access_dashboard", false);
+        data.put("canAccessDashboard", false);
+        data.put("is_approved", false);
+        data.put("isApproved", false);
+        data.put("status_message", "Your documents are under review by the admin team. You will be able to access the dashboard once approved.");
+        data.put("statusMessage", "Your documents are under review by the admin team. You will be able to access the dashboard once approved.");
         data.put("created_at", LocalDateTime.now().toString());
 
         java.util.Map<String, Object> response = new java.util.HashMap<>();
@@ -433,9 +444,23 @@ public class WorkerService {
         WorkerProfile worker = workerProfileRepository.findByPhone(phone)
                 .orElseThrow(() -> new com.salaryneeds.exception.WorkerNotFoundException("Worker not registered with phone: " + phone));
 
+        boolean approved = Boolean.TRUE.equals(worker.getVerified()) &&
+                (worker.getAccountStatus() == AccountStatus.APPROVED || worker.getAccountStatus() == AccountStatus.ACTIVE);
+
+        String statusMsg;
+        if (worker.getAccountStatus() == AccountStatus.SUSPENDED) {
+            statusMsg = "Your worker account has been suspended. Please contact admin support.";
+        } else if (worker.getAccountStatus() == AccountStatus.REJECTED) {
+            statusMsg = "Your documents have been rejected by the admin team. Please re-upload valid documents.";
+        } else if (!approved) {
+            statusMsg = "Your documents are under review by the admin team. You will be able to access the dashboard once approved.";
+        } else {
+            statusMsg = "Login successful";
+        }
+
         return WorkerLoginResponse.builder()
                 .success(true)
-                .message("Login successful")
+                .message(statusMsg)
                 .worker_id(worker.getId())
                 .name(worker.getName())
                 .phone(worker.getPhone())
@@ -443,6 +468,9 @@ public class WorkerService {
                 .verified(Boolean.TRUE.equals(worker.getVerified()))
                 .account_status(worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "PENDING_APPROVAL")
                 .token("mock-session-" + worker.getId())
+                .canAccessDashboard(approved)
+                .isApproved(approved)
+                .statusMessage(statusMsg)
                 .build();
     }
 
@@ -474,7 +502,19 @@ public class WorkerService {
         workerData.put("experience_years", worker != null && worker.getExperienceYears() != null ? worker.getExperienceYears() : 5);
         workerData.put("pincode", worker != null && worker.getPincode() != null ? worker.getPincode() : "500072");
         workerData.put("service_areas", java.util.List.of("500072", "500081"));
-        workerData.put("verified", worker != null ? Boolean.TRUE.equals(worker.getVerified()) : true);
+        boolean approved = worker != null && Boolean.TRUE.equals(worker.getVerified()) &&
+                (worker.getAccountStatus() == AccountStatus.APPROVED || worker.getAccountStatus() == AccountStatus.ACTIVE);
+        String statusMsg = !approved
+                ? "Your documents are under review by the admin team. You will be able to access the dashboard once approved."
+                : "Login successful";
+        workerData.put("verified", worker != null ? Boolean.TRUE.equals(worker.getVerified()) : false);
+        workerData.put("account_status", worker != null && worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "PENDING_APPROVAL");
+        workerData.put("can_access_dashboard", approved);
+        workerData.put("canAccessDashboard", approved);
+        workerData.put("is_approved", approved);
+        workerData.put("isApproved", approved);
+        workerData.put("status_message", statusMsg);
+        workerData.put("statusMessage", statusMsg);
         workerData.put("rating_avg", worker != null && worker.getRatingAvg() != null ? worker.getRatingAvg() : 4.92);
         workerData.put("total_reviews", worker != null && worker.getTotalReviews() != null ? worker.getTotalReviews() : 159);
         workerData.put("acceptance_rate", worker != null && worker.getAcceptanceRate() != null ? worker.getAcceptanceRate() : 99.4);
@@ -509,11 +549,31 @@ public class WorkerService {
 
     public WorkerStatusResponse getStatus(UUID workerId) {
         WorkerProfile worker = workerProfileRepository.findById(workerId)
-                .orElseThrow(() -> new RuntimeException("Worker not found"));
+                .orElseThrow(() -> new com.salaryneeds.exception.WorkerNotFoundException("Worker not found: " + workerId));
+
+        boolean approved = Boolean.TRUE.equals(worker.getVerified()) &&
+                (worker.getAccountStatus() == AccountStatus.APPROVED || worker.getAccountStatus() == AccountStatus.ACTIVE);
+
+        String statusMsg;
+        if (worker.getAccountStatus() == AccountStatus.SUSPENDED) {
+            statusMsg = "Your worker account has been suspended. Please contact admin support.";
+        } else if (worker.getAccountStatus() == AccountStatus.REJECTED) {
+            statusMsg = "Your documents have been rejected by the admin team. Please re-upload valid documents.";
+        } else if (!approved) {
+            statusMsg = "Your documents are under review by the admin team. You will be able to access the dashboard once approved.";
+        } else {
+            statusMsg = "Account approved. Welcome to your dashboard.";
+        }
 
         return WorkerStatusResponse.builder()
-                .verified(worker.getVerified())
-                .account_status(worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "ACTIVE")
+                .success(true)
+                .worker_id(worker.getId())
+                .verified(Boolean.TRUE.equals(worker.getVerified()))
+                .account_status(worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "PENDING_APPROVAL")
+                .canAccessDashboard(approved)
+                .isApproved(approved)
+                .statusMessage(statusMsg)
+                .message(statusMsg)
                 .build();
     }
 

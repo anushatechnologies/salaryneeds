@@ -103,9 +103,22 @@ public class WorkerProfileDTO {
     @com.fasterxml.jackson.annotation.JsonAlias({"account_status", "accountStatus"})
     private String accountStatus;
 
+    @JsonProperty("can_access_dashboard")
+    @com.fasterxml.jackson.annotation.JsonAlias({"can_access_dashboard", "canAccessDashboard"})
+    private Boolean canAccessDashboard;
+
+    @JsonProperty("is_approved")
+    @com.fasterxml.jackson.annotation.JsonAlias({"is_approved", "isApproved"})
+    private Boolean isApproved;
+
+    @JsonProperty("status_message")
+    @com.fasterxml.jackson.annotation.JsonAlias({"status_message", "statusMessage"})
+    private String statusMessage;
+
     @com.fasterxml.jackson.annotation.JsonAlias({"created_at", "createdAt"})
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private LocalDateTime createdAt;
+
 
     @JsonProperty("skills")
     public List<String> getSkills() {
@@ -177,6 +190,36 @@ public class WorkerProfileDTO {
         return createdAt;
     }
 
+    @JsonProperty("can_access_dashboard")
+    public Boolean getCan_access_dashboard() {
+        return canAccessDashboard;
+    }
+
+    @JsonProperty("canAccessDashboard")
+    public Boolean getCanAccessDashboardCamel() {
+        return canAccessDashboard;
+    }
+
+    @JsonProperty("is_approved")
+    public Boolean getIs_approved() {
+        return isApproved;
+    }
+
+    @JsonProperty("isApproved")
+    public Boolean getIsApprovedCamel() {
+        return isApproved;
+    }
+
+    @JsonProperty("status_message")
+    public String getStatus_message() {
+        return statusMessage;
+    }
+
+    @JsonProperty("statusMessage")
+    public String getStatusMessageCamel() {
+        return statusMessage;
+    }
+
     public static class WorkerProfileDTOBuilder {
         private String categoryId;
         private String skills;
@@ -211,6 +254,22 @@ public class WorkerProfileDTO {
 
     public static WorkerProfileDTO fromEntity(WorkerProfile p) {
         if (p == null) return null;
+
+        boolean approved = Boolean.TRUE.equals(p.getVerified()) &&
+                (p.getAccountStatus() == com.salaryneeds.entity.enums.AccountStatus.APPROVED ||
+                 p.getAccountStatus() == com.salaryneeds.entity.enums.AccountStatus.ACTIVE);
+
+        String message;
+        if (p.getAccountStatus() == com.salaryneeds.entity.enums.AccountStatus.SUSPENDED) {
+            message = "Your worker account has been suspended. Please contact admin support.";
+        } else if (p.getAccountStatus() == com.salaryneeds.entity.enums.AccountStatus.REJECTED) {
+            message = "Your documents have been rejected by the admin team. Please re-upload valid documents.";
+        } else if (!approved) {
+            message = "Your documents are under review by the admin team. You will be able to access the dashboard once approved.";
+        } else {
+            message = "Account approved. Welcome to your dashboard.";
+        }
+
         return WorkerProfileDTO.builder()
                 .id(p.getId())
                 .name(p.getName())
@@ -243,7 +302,11 @@ public class WorkerProfileDTO {
                 .lastLng(p.getLastLng())
                 .lastSeenAt(p.getLastSeenAt())
                 .accountStatus(p.getAccountStatus() != null ? p.getAccountStatus().name() : "ACTIVE")
+                .canAccessDashboard(approved)
+                .isApproved(approved)
+                .statusMessage(message)
                 .createdAt(p.getCreatedAt())
                 .build();
     }
 }
+

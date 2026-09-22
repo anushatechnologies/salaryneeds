@@ -45,7 +45,13 @@ public class AdminWorkerService {
                                                       UUID adminId) {
         WorkerProfile w = workerRepo.findById(workerId)
                 .orElseThrow(() -> new WorkerNotFoundException("Worker not found: " + workerId));
-        w.setAccountStatus(AccountStatus.valueOf(req.getAccountStatus()));
+        AccountStatus newStatus = AccountStatus.valueOf(req.getAccountStatus());
+        w.setAccountStatus(newStatus);
+        if (newStatus == AccountStatus.APPROVED || newStatus == AccountStatus.ACTIVE) {
+            w.setVerified(true);
+        } else if (newStatus == AccountStatus.SUSPENDED || newStatus == AccountStatus.INACTIVE || newStatus == AccountStatus.REJECTED) {
+            w.setDutyOnline(false);
+        }
         workerRepo.save(w);
 
         auditLogService.log(adminId,
@@ -71,6 +77,12 @@ public class AdminWorkerService {
 
         boolean approved = "APPROVED".equalsIgnoreCase(req.getStatus());
         w.setVerified(approved);
+        if (approved) {
+            w.setAccountStatus(AccountStatus.APPROVED);
+        } else if ("REJECTED".equalsIgnoreCase(req.getStatus())) {
+            w.setAccountStatus(AccountStatus.REJECTED);
+            w.setDutyOnline(false);
+        }
         workerRepo.save(w);
 
         String action = approved ? "APPROVE_DOCUMENT" : "REJECT_DOCUMENT";
@@ -78,6 +90,7 @@ public class AdminWorkerService {
                 req.getRemarks() != null ? req.getRemarks() : action + " for worker " + workerId);
         return toDTO(w);
     }
+
 
     // ── Mapping helpers ───────────────────────────────────────────────────
 

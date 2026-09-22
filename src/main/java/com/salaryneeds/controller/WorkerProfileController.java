@@ -2,8 +2,10 @@ package com.salaryneeds.controller;
 
 import com.salaryneeds.dto.DutyUpdateRequest;
 import com.salaryneeds.dto.WorkerProfileDTO;
+import com.salaryneeds.dto.WorkerStatusResponse;
 import com.salaryneeds.security.WorkerContext;
 import com.salaryneeds.service.WorkerProfileService;
+import com.salaryneeds.service.WorkerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,11 +13,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping({"/worker/profile", "/v1/worker/profile"})
+@RequestMapping({"/worker/profile", "/v1/worker/profile", "/api/worker/profile"})
 @RequiredArgsConstructor
 public class WorkerProfileController {
 
     private final WorkerProfileService workerProfileService;
+    private final WorkerService workerService;
 
     @GetMapping("/me")
     public ResponseEntity<WorkerProfileDTO> getMyProfile(
@@ -23,6 +26,20 @@ public class WorkerProfileController {
         String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
         WorkerProfileDTO profile = workerProfileService.getProfile(workerId);
         return ResponseEntity.ok(profile);
+    }
+
+    @GetMapping("/status")
+    public ResponseEntity<WorkerStatusResponse> getMyStatus(
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
+        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
+        java.util.UUID uuid = com.salaryneeds.util.UuidUtil.parseUuid(workerId);
+        if (uuid == null) {
+            return ResponseEntity.badRequest().body(WorkerStatusResponse.builder()
+                    .success(false)
+                    .message("Worker ID is required to check status")
+                    .build());
+        }
+        return ResponseEntity.ok(workerService.getStatus(uuid));
     }
 
     @RequestMapping(value = "/duty", method = {RequestMethod.PATCH, RequestMethod.PUT})
@@ -35,3 +52,4 @@ public class WorkerProfileController {
         return ResponseEntity.ok(response);
     }
 }
+

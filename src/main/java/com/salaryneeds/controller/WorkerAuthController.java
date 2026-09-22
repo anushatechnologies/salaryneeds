@@ -4,9 +4,11 @@ import com.salaryneeds.dto.WorkerLoginRequest;
 import com.salaryneeds.dto.WorkerLoginResponse;
 import com.salaryneeds.dto.WorkerSignupRequest;
 import com.salaryneeds.dto.WorkerSignupResponse;
+import com.salaryneeds.dto.WorkerStatusResponse;
 import com.salaryneeds.dto.CheckPhoneRequest;
 import com.salaryneeds.dto.CheckPhoneResponse;
 import com.salaryneeds.service.WorkerService;
+
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -241,6 +243,30 @@ public class WorkerAuthController {
         resp.put("fileSize", upload.getSize());
         return ResponseEntity.ok(resp);
     }
+
+    @GetMapping({"/status", "/{workerId}/status"})
+    public ResponseEntity<WorkerStatusResponse> getStatus(
+            @PathVariable(required = false) String workerId,
+            @RequestParam(required = false) String worker_id,
+            @RequestParam(required = false) String id,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
+        String effectiveIdStr = workerId;
+        if (effectiveIdStr == null || effectiveIdStr.isBlank()) effectiveIdStr = worker_id;
+        if (effectiveIdStr == null || effectiveIdStr.isBlank()) effectiveIdStr = id;
+        if (effectiveIdStr == null || effectiveIdStr.isBlank()) effectiveIdStr = workerIdHeader;
+        if (effectiveIdStr == null || effectiveIdStr.isBlank()) effectiveIdStr = com.salaryneeds.security.WorkerContext.getWorkerId();
+
+        java.util.UUID uuid = com.salaryneeds.util.UuidUtil.parseUuid(effectiveIdStr);
+        if (uuid == null) {
+            return ResponseEntity.badRequest().body(WorkerStatusResponse.builder()
+                    .success(false)
+                    .message("Worker ID is required to check status")
+                    .build());
+        }
+        WorkerStatusResponse response = workerService.getStatus(uuid);
+        return ResponseEntity.ok(response);
+    }
 }
+
 
 

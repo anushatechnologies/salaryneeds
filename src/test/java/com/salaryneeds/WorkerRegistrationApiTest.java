@@ -184,6 +184,109 @@ public class WorkerRegistrationApiTest {
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.name", is("Raju Partner")))
                 .andExpect(jsonPath("$.phone", is(phone)))
-                .andExpect(jsonPath("$.token", notNullValue()));
+                .andExpect(jsonPath("$.token", notNullValue()))
+                .andExpect(jsonPath("$.can_access_dashboard", is(false)))
+                .andExpect(jsonPath("$.is_approved", is(false)))
+                .andExpect(jsonPath("$.status_message", containsString("under review")));
+    }
+
+    @Autowired
+    private com.salaryneeds.repository.WorkerProfileRepository workerProfileRepository;
+
+    @Test
+    @DisplayName("6. Worker cannot access dashboard until documents approved by admin, shows message until approved")
+    void testDashboardAccessRestrictedUntilAdminApproval() throws Exception {
+        String phone = "9876543299";
+
+        // 1. Worker registers
+        WorkerSignupRequest signup = WorkerSignupRequest.builder()
+                .name("Suresh Raina")
+                .phone(phone)
+                .email("suresh@example.com")
+                .pincode("500072")
+                .city("Hyderabad")
+                .service("Plumber")
+                .trade("Plumber")
+                .experienceYears(3)
+                .aadharNumber("987654329900")
+                .panNumber("ABCDE9999K")
+                .build();
+
+        String signupJson = mockMvc.perform(post("/api/worker/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(signup)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.can_access_dashboard", is(false)))
+                .andExpect(jsonPath("$.is_approved", is(false)))
+                .andExpect(jsonPath("$.account_status", is("PENDING_APPROVAL")))
+                .andExpect(jsonPath("$.status_message", containsString("under review")))
+                .andReturn().getResponse().getContentAsString();
+
+        String workerId = objectMapper.readTree(signupJson).path("worker_id").asText();
+
+        // 2. Check worker status via /api/worker/status endpoint before admin approval
+        mockMvc.perform(get("/api/worker/" + workerId + "/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.can_access_dashboard", is(false)))
+                .andExpect(jsonPath("$.is_approved", is(false)))
+                .andExpect(jsonPath("$.account_status", is("PENDING_APPROVAL")))
+                .andExpect(jsonPath("$.status_message", containsString("under review")));
+
+        // 3. Worker login before admin approval returns can_access_dashboard = false with review message
+        WorkerLoginRequest loginReq = WorkerLoginRequest.builder()
+                .phone(phone)
+                .otp("1234")
+                .build();
+
+        mockMvc.perform(post("/api/worker/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.can_access_dashboard", is(false)))
+                .andExpect(jsonPath("$.is_approved", is(false)))
+                .andExpect(jsonPath("$.status_message", containsString("under review")));
+
+        // 4. Attempting to toggle duty while pending approval is blocked (403 Forbidden)
+        mockMvc.perform(patch("/worker/profile/duty")
+                        .header("X-Worker-Id", workerId))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message", containsString("under review")));
+
+        // 5. Admin approves worker documents
+        java.util.UUID uuid = java.util.UUID.fromString(workerId);
+        com.salaryneeds.entity.WorkerProfile worker = workerProfileRepository.findById(uuid).orElseThrow();
+        worker.setVerified(true);
+        worker.setAccountStatus(com.salaryneeds.entity.enums.AccountStatus.ACTIVE);
+        workerProfileRepository.save(worker);
+
+        // 6. Check worker status after admin approval: dashboard access granted!
+        mockMvc.perform(get("/api/worker/" + workerId + "/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.can_access_dashboard", is(true)))
+                .andExpect(jsonPath("$.is_approved", is(true)))
+                .andExpect(jsonPath("$.account_status", is("ACTIVE")))
+                .andExpect(jsonPath("$.status_message", containsString("approved")));
+
+        // 7. Worker login after admin approval returns can_access_dashboard = true
+        mockMvc.perform(post("/api/worker/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.can_access_dashboard", is(true)))
+                .andExpect(jsonPath("$.is_approved", is(true)));
+
+        // 8. Worker profile endpoint /worker/profile/me also reflects dashboard access granted
+        mockMvc.perform(get("/worker/profile/me")
+                        .header("X-Worker-Id", workerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.can_access_dashboard", is(true)))
+                .andExpect(jsonPath("$.is_approved", is(true)));
+
+        // 9. Worker can now toggle duty successfully
+        mockMvc.perform(patch("/worker/profile/duty")
+                        .header("X-Worker-Id", workerId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
     }
 }
+

@@ -33,14 +33,15 @@ public class WorkerProfileService {
         WorkerProfile profile = getOrCreateProfile(workerId);
 
         if (profile.getAccountStatus() == AccountStatus.SUSPENDED ||
-            profile.getAccountStatus() == AccountStatus.INACTIVE) {
-            throw new AccountNotActiveException("Worker account is suspended or inactive. Cannot toggle On-Duty.");
+            profile.getAccountStatus() == AccountStatus.INACTIVE ||
+            profile.getAccountStatus() == AccountStatus.REJECTED) {
+            throw new AccountNotActiveException("Worker account is not active. Cannot toggle On-Duty.");
         }
 
-        if (profile.getAccountStatus() == AccountStatus.PENDING_APPROVAL) {
-            profile.setAccountStatus(AccountStatus.ACTIVE);
-            profile.setVerified(true);
+        if (profile.getAccountStatus() == AccountStatus.PENDING_APPROVAL || !Boolean.TRUE.equals(profile.getVerified())) {
+            throw new AccountNotActiveException("Your documents are under review by the admin team. You cannot go on duty until an administrator approves your account.");
         }
+
 
         boolean newDutyStatus = requestedDuty != null ? requestedDuty : !Boolean.TRUE.equals(profile.getDutyOnline());
         profile.setDutyOnline(newDutyStatus);

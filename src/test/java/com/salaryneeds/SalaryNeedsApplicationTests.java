@@ -122,11 +122,31 @@ class SalaryNeedsApplicationTests {
 
         String authHeader = "Bearer " + token;
 
-        // Step 3: Get Profile
+        // Step 3: Get Profile (Before approval: cannot access dashboard, documents under review)
         mockMvc.perform(get("/worker/profile/me")
                         .header("Authorization", authHeader))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.phone", is("9876543210")));
+                .andExpect(jsonPath("$.phone", is("9876543210")))
+                .andExpect(jsonPath("$.can_access_dashboard", is(false)))
+                .andExpect(jsonPath("$.is_approved", is(false)));
+
+        // Admin approves worker documents
+        UUID workerUuid = com.salaryneeds.util.UuidUtil.parseUuid(workerId);
+        if (workerUuid != null) {
+            workerProfileRepository.findById(workerUuid).ifPresent(w -> {
+                w.setVerified(true);
+                w.setAccountStatus(com.salaryneeds.entity.enums.AccountStatus.ACTIVE);
+                workerProfileRepository.save(w);
+            });
+        }
+
+        // Verify profile after admin approval: dashboard access granted
+        mockMvc.perform(get("/worker/profile/me")
+                        .header("Authorization", authHeader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.can_access_dashboard", is(true)))
+                .andExpect(jsonPath("$.is_approved", is(true)));
+
 
         // Step 4: Toggle Duty & Location Ping
         DutyUpdateRequest dutyReq = new DutyUpdateRequest(true);

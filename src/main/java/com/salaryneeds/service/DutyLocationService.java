@@ -51,6 +51,20 @@ public class DutyLocationService {
         boolean targetDuty = requestedDuty != null ? requestedDuty : !Boolean.TRUE.equals(profile.getDutyOnline());
 
         if (targetDuty) {
+            if (profile.getAccountStatus() == com.salaryneeds.entity.enums.AccountStatus.PENDING_APPROVAL) {
+                throw new ApiException("ACCOUNT_NOT_APPROVED",
+                        "Your documents are under review by the admin team. You cannot go on duty until an administrator approves your account.",
+                        HttpStatus.FORBIDDEN);
+            }
+            if (profile.getAccountStatus() == com.salaryneeds.entity.enums.AccountStatus.SUSPENDED ||
+                profile.getAccountStatus() == com.salaryneeds.entity.enums.AccountStatus.INACTIVE ||
+                profile.getAccountStatus() == com.salaryneeds.entity.enums.AccountStatus.REJECTED) {
+                throw new ApiException("ACCOUNT_NOT_ACTIVE",
+                        "Worker account is not active. Cannot toggle On-Duty.",
+                        HttpStatus.FORBIDDEN);
+            }
+
+
             // Enforcement: Prepaid wallet balance >= ₹100
             WorkerWallet wallet = workerWalletRepository.findByWorkerId(profile.getId().toString()).orElse(null);
             BigDecimal balance = wallet != null && wallet.getPrepaidDutyBalance() != null ? wallet.getPrepaidDutyBalance() : BigDecimal.valueOf(500.00);
@@ -60,6 +74,7 @@ public class DutyLocationService {
                         HttpStatus.FORBIDDEN);
             }
         }
+
 
         profile.setDutyOnline(targetDuty);
         workerProfileRepository.save(profile);
