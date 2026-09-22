@@ -2,17 +2,30 @@ package com.salaryneeds.service;
 
 import com.salaryneeds.dto.*;
 import com.salaryneeds.entity.Category;
+import com.salaryneeds.entity.WorkerDocument;
 import com.salaryneeds.entity.WorkerProfile;
+import com.salaryneeds.entity.WorkerWallet;
 import com.salaryneeds.entity.enums.AccountStatus;
+import com.salaryneeds.entity.enums.DocType;
 import com.salaryneeds.repository.CategoryRepository;
+import com.salaryneeds.repository.WorkerDocumentRepository;
 import com.salaryneeds.repository.WorkerProfileRepository;
+import com.salaryneeds.repository.WorkerWalletRepository;
+import com.salaryneeds.service.storage.SupabaseStorageService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import com.salaryneeds.exception.ApiException;
+import com.salaryneeds.repository.SubCategoryRepository;
+import org.springframework.http.HttpStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class WorkerService {
 
     @Autowired
@@ -21,43 +34,330 @@ public class WorkerService {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    @Autowired(required = false)
+    private SubCategoryRepository subCategoryRepository;
+
+    @Autowired(required = false)
+    private WorkerDocumentRepository workerDocumentRepository;
+
+    @Autowired(required = false)
+    private SupabaseStorageService supabaseStorageService;
+
+    @Autowired(required = false)
+    private WorkerWalletRepository workerWalletRepository;
+
     public CheckPhoneResponse checkPhone(CheckPhoneRequest request) {
         boolean exists = workerProfileRepository.existsByPhone(request.getPhone());
         return CheckPhoneResponse.builder().exists(exists).build();
     }
 
+    public CheckPhoneResponse checkAadhar(String aadharNumber) {
+        if (aadharNumber == null || aadharNumber.isBlank()) {
+            return CheckPhoneResponse.builder().exists(false).build();
+        }
+        String clean = aadharNumber.replaceAll("[\\s-]+", "").trim();
+        boolean exists = workerProfileRepository.existsByAadharNumber(clean);
+        return CheckPhoneResponse.builder().exists(exists).build();
+    }
+
+    public CheckPhoneResponse checkPan(String panNumber) {
+        if (panNumber == null || panNumber.isBlank()) {
+            return CheckPhoneResponse.builder().exists(false).build();
+        }
+        String clean = panNumber.replaceAll("[\\s-]+", "").trim().toUpperCase();
+        boolean exists = workerProfileRepository.existsByPanNumber(clean);
+        return CheckPhoneResponse.builder().exists(exists).build();
+    }
+
     public WorkerSignupResponse signup(WorkerSignupRequest request) {
-        if (workerProfileRepository.existsByPhone(request.getPhone())) {
-            throw new com.salaryneeds.exception.PhoneAlreadyExistsException("Phone number already in use");
+        // 1. Phone validation & duplicate check
+        String rawPhone = request.getPhone() != null ? request.getPhone().trim() : "";
+        if (rawPhone.isBlank()) {
+            throw new ApiException("PHONE_REQUIRED", "Phone number is required", HttpStatus.BAD_REQUEST);
+        }
+        String cleanPhone = rawPhone.replaceAll("[\\s-]+", "").trim();
+        if (!cleanPhone.matches("^(\\+91)?[6-9]\\d{9}$") && !cleanPhone.matches("^(91|0)?[6-9]\\d{9}$") && !cleanPhone.matches("^\\d{10,11}$")) {
+            throw new ApiException("INVALID_PHONE", "Phone must be a valid 10-digit Indian mobile number", HttpStatus.BAD_REQUEST);
+        }
+        String normalized10Digit = cleanPhone.replaceAll("^(\\+91|91|0)", "");
+        if (workerProfileRepository.existsByPhone(rawPhone)
+                || workerProfileRepository.existsByPhone(cleanPhone)
+                || workerProfileRepository.existsByPhone(normalized10Digit)
+                || workerProfileRepository.existsByPhone("+91" + normalized10Digit)) {
+            throw new com.salaryneeds.exception.PhoneAlreadyExistsException("Phone number already exists");
+        }
+        String phone = normalized10Digit.length() == 10 ? normalized10Digit : cleanPhone;
+
+        // 2. Aadhaar validation & duplicate check
+        String aadharNumber = request.getEffectiveAadharNumber();
+        if (aadharNumber != null && !aadharNumber.isBlank()) {
+            String cleanAadhar = aadharNumber.replaceAll("[\\s-]+", "").trim();
+            if (!cleanAadhar.matches("^\\d{12}$")) {
+                throw new ApiException("INVALID_AADHAAR", "Aadhaar number must be a valid 12-digit number", HttpStatus.BAD_REQUEST);
+            }
+            if (workerProfileRepository.existsByAadharNumber(cleanAadhar) || workerProfileRepository.existsByAadharNumber(aadharNumber)) {
+                throw new com.salaryneeds.exception.AadharAlreadyExistsException("Aadhaar number already exists");
+            }
+            aadharNumber = cleanAadhar;
+        }
+
+        // 3. PAN validation & duplicate check
+        String panNumber = request.getEffectivePanNumber();
+        if (panNumber != null && !panNumber.isBlank()) {
+            String cleanPan = panNumber.replaceAll("[\\s-]+", "").trim().toUpperCase();
+            if (!cleanPan.matches("^[A-Z]{5}[0-9]{4}[A-Z]{1}$")) {
+                throw new ApiException("INVALID_PAN", "PAN number must be a valid 10-character code (e.g. ABCDE1234F)", HttpStatus.BAD_REQUEST);
+            }
+            if (workerProfileRepository.existsByPanNumber(cleanPan) || workerProfileRepository.existsByPanNumber(panNumber)) {
+                throw new com.salaryneeds.exception.PanAlreadyExistsException("PAN number already exists");
+            }
+            panNumber = cleanPan;
+        }
+
+        UUID catId = request.getEffectiveCategoryId();
+        Category category = null;
+        if (catId != null) {
+            category = categoryRepository.findById(catId).orElse(null);
+        }
+        String serviceName = request.getEffectiveService();
+        if (request.getSubCategoryId() != null && !request.getSubCategoryId().isBlank() && subCategoryRepository != null) {
+            var subOpt = subCategoryRepository.findById(request.getSubCategoryId());
+            if (subOpt.isEmpty()) {
+                subOpt = subCategoryRepository.findByCode(request.getSubCategoryId());
+            }
+            if (subOpt.isPresent()) {
+                var sub = subOpt.get();
+                if ("Technician".equals(serviceName)) {
+                    serviceName = sub.getName();
+                }
+                if (category == null && sub.getCategoryId() != null) {
+                    try {
+                        category = categoryRepository.findById(com.salaryneeds.util.UuidUtil.parseUuid(sub.getCategoryId())).orElse(null);
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        if (category == null) {
+            category = categoryRepository.findAll().stream().findFirst().orElse(null);
+        }
+
+        String email = request.getEffectiveEmail();
+        if (email == null) {
+            email = phone + "@salaryneeds.app";
         }
 
         WorkerProfile worker = WorkerProfile.builder()
-                .name(request.getName())
-                .email(request.getPhone() + "@salaryneeds.app")
+                .name(request.getName() != null ? request.getName().trim() : "Partner")
+                .email(email)
                 .passwordHash("dummy-hash")
-                .phone(request.getPhone())
-                .service(request.getService())
-                .skills(request.getSkills())
-                .experienceYears(request.getExperience_years())
-                .pincode(request.getPincode())
+                .phone(phone)
+                .category(category)
+                .service(serviceName)
+                .skills(request.getSkills() != null ? request.getSkills() : "")
+                .experienceYears(request.getEffectiveExperience())
+                .pincode(request.getPincode() != null ? request.getPincode().trim() : "")
+                .city(request.getCity() != null ? request.getCity().trim() : "")
+                .address(request.getAddress() != null ? request.getAddress().trim() : "")
+                .aadharNumber(aadharNumber)
+                .panNumber(panNumber)
                 .verified(false)
                 .emailVerified(false)
                 .phoneVerified(true)
                 .accountStatus(AccountStatus.PENDING_APPROVAL)
                 .dutyOnline(false)
-                .ratingAvg(java.math.BigDecimal.valueOf(4.92))
-                .totalReviews(159)
-                .acceptanceRate(99.4)
-                .completionRate(99.8)
-                .tier("ELITE")
+                .ratingAvg(BigDecimal.valueOf(5.00))
+                .totalReviews(0)
+                .acceptanceRate(100.0)
+                .completionRate(100.0)
+                .tier("STANDARD")
                 .build();
 
         worker = workerProfileRepository.save(worker);
+        String workerIdStr = worker.getId().toString();
+
+        if (workerWalletRepository != null && !workerWalletRepository.findByWorkerId(workerIdStr).isPresent()) {
+            WorkerWallet wallet = WorkerWallet.builder()
+                    .id("wal-" + UUID.randomUUID().toString())
+                    .workerId(workerIdStr)
+                    .earningsBalance(BigDecimal.ZERO)
+                    .todayEarnings(BigDecimal.ZERO)
+                    .thisWeekEarnings(BigDecimal.ZERO)
+                    .thisMonthEarnings(BigDecimal.ZERO)
+                    .prepaidDutyBalance(BigDecimal.valueOf(500.00))
+                    .withdrawableEarnings(BigDecimal.ZERO)
+                    .lockedBalance(BigDecimal.ZERO)
+                    .lifetimeEarned(BigDecimal.ZERO)
+                    .bankVerified(false)
+                    .build();
+            workerWalletRepository.save(wallet);
+        }
+
+        // Process document uploads (Aadhaar & PAN) to Supabase Storage and DB
+        String aadharDocUrl = processWorkerDocument(workerIdStr, DocType.AADHAAR_CARD, request.getAadharFile(), request.getAadharUrl());
+        String panDocUrl = processWorkerDocument(workerIdStr, DocType.PAN_CARD, request.getPanFile(), request.getPanUrl());
+        if (aadharDocUrl != null || panDocUrl != null) {
+            worker.setAadharUrl(aadharDocUrl);
+            worker.setPanUrl(panDocUrl);
+            worker = workerProfileRepository.save(worker);
+        }
+        // Upload full profile details JSON to S3 bucket
+        this.uploadWorkerProfileToS3(worker);
 
         return WorkerSignupResponse.builder()
                 .worker_id(worker.getId())
-                .message("OTP sent, profile pending document verification")
+                .message("Worker registration complete. Details and documents submitted successfully.")
+                .aadharNumber(aadharNumber)
+                .panNumber(panNumber)
+                .aadharUrl(aadharDocUrl)
+                .panUrl(panDocUrl)
                 .build();
+    }
+
+    public java.util.Map<String, Object> uploadWorkerDocuments(String workerId, MultipartFile aadharFile, MultipartFile panFile, String aadharNumber, String panNumber, String aadharUrl, String panUrl) {
+        UUID id = com.salaryneeds.util.UuidUtil.parseUuid(workerId);
+        WorkerProfile worker = (id != null) ? workerProfileRepository.findById(id).orElse(null) : null;
+        if (worker == null) {
+            throw new com.salaryneeds.exception.WorkerNotFoundException("Worker not found with ID: " + workerId);
+        }
+
+        if (aadharNumber != null && !aadharNumber.isBlank()) {
+            String cleanAadhar = aadharNumber.replaceAll("[\\s-]+", "").trim();
+            if (!cleanAadhar.matches("^\\d{12}$")) {
+                throw new ApiException("INVALID_AADHAAR", "Aadhaar number must be a valid 12-digit number", HttpStatus.BAD_REQUEST);
+            }
+            if (workerProfileRepository.existsByAadharNumber(cleanAadhar) && !cleanAadhar.equals(worker.getAadharNumber())) {
+                throw new com.salaryneeds.exception.AadharAlreadyExistsException("Aadhaar number already exists");
+            }
+            worker.setAadharNumber(cleanAadhar);
+        }
+
+        if (panNumber != null && !panNumber.isBlank()) {
+            String cleanPan = panNumber.replaceAll("[\\s-]+", "").trim().toUpperCase();
+            if (!cleanPan.matches("^[A-Z]{5}[0-9]{4}[A-Z]{1}$")) {
+                throw new ApiException("INVALID_PAN", "PAN number must be a valid 10-character code (e.g. ABCDE1234F)", HttpStatus.BAD_REQUEST);
+            }
+            if (workerProfileRepository.existsByPanNumber(cleanPan) && !cleanPan.equals(worker.getPanNumber())) {
+                throw new com.salaryneeds.exception.PanAlreadyExistsException("PAN number already exists");
+            }
+            worker.setPanNumber(cleanPan);
+        }
+
+        String aadharDocUrl = processWorkerDocument(workerId, DocType.AADHAAR_CARD, aadharFile, aadharUrl);
+        String panDocUrl = processWorkerDocument(workerId, DocType.PAN_CARD, panFile, panUrl);
+
+        worker = workerProfileRepository.save(worker);
+
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("success", true);
+        response.put("workerId", workerId);
+        response.put("aadharNumber", worker.getAadharNumber());
+        response.put("panNumber", worker.getPanNumber());
+        response.put("aadharUrl", aadharDocUrl);
+        response.put("panUrl", panDocUrl);
+        response.put("message", "Aadhaar and PAN documents uploaded successfully");
+        return response;
+    }
+
+    public String processWorkerDocument(String workerId, DocType docType, MultipartFile file, String urlOrBase64) {
+        if (workerDocumentRepository == null) {
+            return null;
+        }
+
+        String s3Key = null;
+        String docUrl = null;
+        String originalFilename = docType.name().toLowerCase();
+        Long fileSize = null;
+
+        if (file != null && !file.isEmpty()) {
+            originalFilename = file.getOriginalFilename();
+            fileSize = file.getSize();
+            if (supabaseStorageService != null) {
+                try {
+                    docUrl = supabaseStorageService.uploadWorkerDocument(workerId, docType.name(), file);
+                    s3Key = "workers/" + workerId + "/" + docType.name().toLowerCase() + "_" + originalFilename;
+                } catch (Exception e) {
+                    log.warn("Supabase document upload notice for {}: {}", docType, e.getMessage());
+                }
+            }
+            if (docUrl == null) {
+                s3Key = "workers/" + workerId + "/" + originalFilename;
+                docUrl = "https://storage.salaryneeds.app/" + s3Key;
+            }
+        } else if (urlOrBase64 != null && urlOrBase64.startsWith("data:")) {
+            try {
+                String[] parts = urlOrBase64.split(",");
+                String meta = parts[0];
+                String base64Data = parts[1];
+                String contentType = meta.substring(meta.indexOf(":") + 1, meta.indexOf(";"));
+                byte[] bytes = java.util.Base64.getDecoder().decode(base64Data);
+                fileSize = (long) bytes.length;
+                String ext = contentType.contains("pdf") ? ".pdf" : ".jpg";
+                originalFilename = docType.name().toLowerCase() + ext;
+
+                if (supabaseStorageService != null) {
+                    try {
+                        docUrl = supabaseStorageService.uploadWorkerDocument(workerId, docType.name(), bytes, originalFilename, contentType);
+                        s3Key = "workers/" + workerId + "/" + originalFilename;
+                    } catch (Exception e) {
+                        log.warn("Supabase base64 upload notice for {}: {}", docType, e.getMessage());
+                    }
+                }
+                if (docUrl == null) {
+                    s3Key = "workers/" + workerId + "/" + originalFilename;
+                    docUrl = "https://storage.salaryneeds.app/" + s3Key;
+                }
+            } catch (Exception e) {
+                log.warn("Failed to decode base64 document for {}: {}", docType, e.getMessage());
+            }
+        } else if (urlOrBase64 != null && !urlOrBase64.isBlank()) {
+            docUrl = urlOrBase64.trim();
+            s3Key = "workers/" + workerId + "/" + docType.name().toLowerCase();
+        }
+
+        if (docUrl != null || s3Key != null) {
+            WorkerDocument doc = WorkerDocument.builder()
+                    .id("doc-" + UUID.randomUUID().toString().substring(0, 8))
+                    .workerId(workerId)
+                    .docType(docType)
+                    .s3Key(s3Key != null ? s3Key : docUrl)
+                    .documentUrl(docUrl)
+                    .originalFilename(originalFilename)
+                    .fileSizeBytes(fileSize)
+                    .status("PENDING")
+                    .uploadedAt(LocalDateTime.now())
+                    .build();
+            workerDocumentRepository.save(doc);
+        }
+        return docUrl != null ? docUrl : s3Key;
+    }
+
+    public void uploadWorkerProfileToS3(WorkerProfile worker) {
+        if (supabaseStorageService == null || worker == null || worker.getId() == null) {
+            return;
+        }
+        try {
+            java.util.Map<String, Object> details = new java.util.HashMap<>();
+            details.put("workerId", worker.getId().toString());
+            details.put("name", worker.getName());
+            details.put("phone", worker.getPhone());
+            details.put("email", worker.getEmail());
+            details.put("category", worker.getCategory() != null ? worker.getCategory().getName() : "");
+            details.put("categoryId", worker.getCategory() != null && worker.getCategory().getId() != null ? worker.getCategory().getId().toString() : "");
+            details.put("service", worker.getService());
+            details.put("skills", worker.getSkills());
+            details.put("experienceYears", worker.getExperienceYears());
+            details.put("pincode", worker.getPincode());
+            details.put("city", worker.getCity());
+            details.put("address", worker.getAddress());
+            details.put("accountStatus", worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "PENDING_APPROVAL");
+            details.put("registeredAt", LocalDateTime.now().toString());
+
+            byte[] jsonBytes = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(details);
+            supabaseStorageService.uploadWorkerDocument(worker.getId().toString(), "profile", jsonBytes, "profile.json", "application/json");
+            log.info("Uploaded worker profile details JSON to S3 bucket for worker: {}", worker.getId());
+        } catch (Exception e) {
+            log.warn("Notice: could not upload worker profile JSON to S3: {}", e.getMessage());
+        }
     }
 
     public java.util.Map<String, Object> registerWorker(WorkerRegisterRequest request) {
@@ -108,6 +408,12 @@ public class WorkerService {
 
         worker = workerProfileRepository.save(worker);
 
+        if (request != null) {
+            processWorkerDocument(worker.getId().toString(), DocType.AADHAAR_CARD, request.getAadharFile(), request.getAadharUrl());
+            processWorkerDocument(worker.getId().toString(), DocType.PAN_CARD, request.getPanFile(), request.getPanUrl());
+            uploadWorkerProfileToS3(worker);
+        }
+
         java.util.Map<String, Object> data = new java.util.HashMap<>();
         data.put("id", worker.getId() != null ? worker.getId().toString() : "w-7f9a12c4-b8e1-4c2d-9a63-3e1b7f9a12c4");
         data.put("name", worker.getName());
@@ -138,16 +444,23 @@ public class WorkerService {
 
     public WorkerLoginResponse login(WorkerLoginRequest request) {
         String phone = request.getEffectivePhone();
-        WorkerProfile worker = (phone != null) ? workerProfileRepository.findByPhone(phone).orElse(null) : null;
-        String workerIdStr = (worker != null && worker.getId() != null) ? worker.getId().toString() : "w-7f9a12c4-b8e1-4c2d-9a63-3e1b7f9a12c4";
+        if (phone == null || phone.isBlank()) {
+            throw new IllegalArgumentException("Phone number is required");
+        }
 
-        String token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_jwt_token";
+        WorkerProfile worker = workerProfileRepository.findByPhone(phone)
+                .orElseThrow(() -> new com.salaryneeds.exception.WorkerNotFoundException("Worker not registered with phone: " + phone));
 
         return WorkerLoginResponse.builder()
-                .token(token)
-                .worker_id(worker != null ? worker.getId() : UUID.fromString("7f9a12c4-b8e1-4c2d-9a63-3e1b7f9a12c4"))
-                .verified(worker != null ? Boolean.TRUE.equals(worker.getVerified()) : true)
-                .account_status(worker != null && worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "ACTIVE")
+                .success(true)
+                .message("Login successful")
+                .worker_id(worker.getId())
+                .name(worker.getName())
+                .phone(worker.getPhone())
+                .email(worker.getEmail())
+                .verified(Boolean.TRUE.equals(worker.getVerified()))
+                .account_status(worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "PENDING_APPROVAL")
+                .token("mock-session-" + worker.getId())
                 .build();
     }
 

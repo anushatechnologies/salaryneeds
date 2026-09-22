@@ -111,6 +111,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
+    @ExceptionHandler(AadharAlreadyExistsException.class)
+    public ResponseEntity<Map<String, Object>> handleAadharAlreadyExists(AadharAlreadyExistsException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "AADHAR_ALREADY_EXISTS");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(PanAlreadyExistsException.class)
+    public ResponseEntity<Map<String, Object>> handlePanAlreadyExists(PanAlreadyExistsException ex, HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "PAN_ALREADY_EXISTS");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", LocalDateTime.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
     @ExceptionHandler(InvalidOtpException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidOtp(InvalidOtpException ex, HttpServletRequest request) {
         Map<String, Object> response = new HashMap<>();

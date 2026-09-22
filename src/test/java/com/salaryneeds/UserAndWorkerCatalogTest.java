@@ -1,23 +1,16 @@
 package com.salaryneeds;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.salaryneeds.controller.AdminCatalogController;
-import com.salaryneeds.controller.UserCatalogController;
-import com.salaryneeds.controller.WorkerCatalogController;
 import com.salaryneeds.dto.catalog.CategoryRequestDTO;
 import com.salaryneeds.dto.catalog.CategoryResponseDTO;
 import com.salaryneeds.dto.catalog.SubCategoryRequestDTO;
 import com.salaryneeds.dto.catalog.SubCategoryResponseDTO;
 import com.salaryneeds.dto.catalog.VariantRequestDTO;
-import com.salaryneeds.dto.catalog.VariantResponseDTO;
 import com.salaryneeds.service.CatalogManagementService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,9 +28,6 @@ public class UserAndWorkerCatalogTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private CatalogManagementService catalogService;

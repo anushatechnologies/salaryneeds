@@ -5,7 +5,6 @@ import com.salaryneeds.controller.AdminCatalogController;
 import com.salaryneeds.dto.catalog.ServiceRequestDTO;
 import com.salaryneeds.dto.catalog.ServiceResponseDTO;
 import com.salaryneeds.dto.catalog.SubCategoryRequestDTO;
-import com.salaryneeds.dto.catalog.SubCategoryResponseDTO;
 import com.salaryneeds.exception.CategoryNotFoundException;
 import com.salaryneeds.exception.DuplicateCatalogServiceException;
 import com.salaryneeds.exception.DuplicateSubCategoryException;

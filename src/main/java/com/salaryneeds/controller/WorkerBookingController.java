@@ -1,9 +1,7 @@
 package com.salaryneeds.controller;
 
-import com.salaryneeds.dto.BookingStatusUpdateRequestDTO;
 import com.salaryneeds.dto.ExtraPartRequest;
 import com.salaryneeds.dto.VerifyOtpRequest;
-import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.exception.InvalidOtpException;
 import com.salaryneeds.security.WorkerContext;
 import lombok.RequiredArgsConstructor;

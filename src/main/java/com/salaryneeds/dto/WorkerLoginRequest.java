@@ -1,8 +1,7 @@
 package com.salaryneeds.dto;
 
-import jakarta.validation.constraints.Email;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,11 +12,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WorkerLoginRequest {
+
+    @NotBlank(message = "Phone number is required")
+    @JsonAlias({"mobile", "phoneNumber", "mobileNumber", "phone_number"})
     private String phone;
+
     private String username;
 
-    @NotBlank
-    @Pattern(regexp = "^\\d{4}$", message = "OTP must be exactly 4 digits")
+    @NotBlank(message = "OTP is required")
+    @JsonAlias({"verificationCode", "code"})
     private String otp;
 
     public String getEffectivePhone() {

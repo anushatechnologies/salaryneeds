@@ -1,10 +1,8 @@
 package com.salaryneeds;
 
 import com.salaryneeds.dto.*;
-import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Booking;
 import com.salaryneeds.entity.enums.BookingStatus;
-import com.salaryneeds.entity.enums.DiscountType;
 import com.salaryneeds.exception.InvalidBookingStateException;
 import com.salaryneeds.repository.AddressRepository;
 import com.salaryneeds.repository.BookingRepository;
@@ -23,7 +21,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

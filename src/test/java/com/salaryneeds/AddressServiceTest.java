@@ -2,11 +2,8 @@ package com.salaryneeds;
 
 import com.salaryneeds.dto.AddressCreateRequestDTO;
 import com.salaryneeds.dto.AddressResponseDTO;
-import com.salaryneeds.dto.AddressUpdateRequestDTO;
 import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Customer;
-import com.salaryneeds.exception.AddressNotFoundException;
-import com.salaryneeds.exception.CustomerNotFoundException;
 import com.salaryneeds.repository.AddressRepository;
 import com.salaryneeds.repository.CustomerRepository;
 import com.salaryneeds.service.AddressServiceImpl;

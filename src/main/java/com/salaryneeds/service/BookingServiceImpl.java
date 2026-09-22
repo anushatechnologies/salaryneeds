@@ -3,7 +3,6 @@ package com.salaryneeds.service;
 import com.salaryneeds.dto.*;
 import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Booking;
-import com.salaryneeds.entity.Customer;
 import com.salaryneeds.entity.ServiceItem;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.entity.enums.BookingStatusTab;
@@ -67,7 +66,6 @@ public class BookingServiceImpl implements BookingService {
         List<SlotResponseDTO> slots = new ArrayList<>();
 
         for (SlotDefinition def : definitions) {
-            LocalDateTime slotStart = targetDate.atTime(def.startTime);
             LocalDateTime slotEnd = targetDate.atTime(def.endTime);
             // Instamart-style: Slot remains active and bookable until the slot window ends (e.g., 3:00 PM for 12:00 PM - 03:00 PM)
             LocalDateTime cutoffTime = slotEnd;

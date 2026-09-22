@@ -1,7 +1,6 @@
 package com.salaryneeds.controller;
 
 import com.salaryneeds.dto.DutyUpdateRequest;
-import com.salaryneeds.dto.LocationHeartbeatRequest;
 import com.salaryneeds.security.WorkerContext;
 import com.salaryneeds.service.DutyLocationService;
 import lombok.RequiredArgsConstructor;

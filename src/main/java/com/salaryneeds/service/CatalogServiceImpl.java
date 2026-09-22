@@ -206,7 +206,6 @@ public class CatalogServiceImpl implements CatalogService {
 
     private SubCategoryResponseDTO mapToSubCategoryResponseDTO(ServiceItem item) {
         Category cat = item.getCategory();
-        int variantsCount = variantRepository.countBySubcategoryIdAndIsActiveTrue(item.getId());
 
         return SubCategoryResponseDTO.builder()
                 .id(item.getId())

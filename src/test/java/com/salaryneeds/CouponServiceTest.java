@@ -10,7 +10,6 @@ import com.salaryneeds.entity.Coupon;
 import com.salaryneeds.entity.CouponRedemption;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.entity.enums.DiscountType;
-import com.salaryneeds.exception.CouponNotFoundException;
 import com.salaryneeds.repository.BookingRepository;
 import com.salaryneeds.repository.CouponRedemptionRepository;
 import com.salaryneeds.repository.CouponRepository;

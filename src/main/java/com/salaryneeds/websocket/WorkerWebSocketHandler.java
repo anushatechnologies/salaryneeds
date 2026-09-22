@@ -28,10 +28,6 @@ public class WorkerWebSocketHandler extends TextWebSocketHandler {
         String token = extractToken(session);
         String workerId = (token != null && !token.isBlank()) ? token : "worker-" + session.getId();
 
-        if (workerId == null) {
-            workerId = "worker-" + session.getId();
-        }
-
         session.getAttributes().put("workerId", workerId);
         ACTIVE_SESSIONS.put(workerId, session);
         log.info("WebSocket connection established for worker: {}", workerId);

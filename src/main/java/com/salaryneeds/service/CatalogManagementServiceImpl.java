@@ -1003,9 +1003,6 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
 
     private SubCategoryResponseDTO mapToSubCategoryResponseDTO(ServiceItem item) {
         Category cat = item.getCategory();
-        CatalogServiceEntity srv = (cat != null) ? cat.getService() : null;
-
-        int variantsCount = variantRepository.countBySubcategoryId(item.getId());
 
         return SubCategoryResponseDTO.builder()
                 .id(item.getId())

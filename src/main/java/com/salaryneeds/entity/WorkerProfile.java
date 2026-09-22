@@ -61,6 +61,18 @@ public class WorkerProfile {
     @Column(name = "address", length = 500)
     private String address;
 
+    @Column(name = "aadhar_number", length = 30)
+    private String aadharNumber;
+
+    @Column(name = "pan_number", length = 30)
+    private String panNumber;
+
+    @Column(name = "aadhar_url", length = 1000)
+    private String aadharUrl;
+
+    @Column(name = "pan_url", length = 1000)
+    private String panUrl;
+
     @Column(name = "verified", nullable = false)
     @Builder.Default
     private Boolean verified = false;
@@ -185,22 +197,8 @@ public class WorkerProfile {
     }
 
     public static class WorkerProfileBuilder {
-        private BigDecimal ratingAvg;
-        private String service;
-
-        public WorkerProfileBuilder ratingAvg(Double ratingAvg) {
-            this.ratingAvg = ratingAvg != null ? BigDecimal.valueOf(ratingAvg) : BigDecimal.valueOf(5.00);
-            return this;
-        }
-
-        public WorkerProfileBuilder ratingAvg(BigDecimal ratingAvg) {
-            this.ratingAvg = ratingAvg;
-            return this;
-        }
-
         public WorkerProfileBuilder trade(String trade) {
-            this.service = trade;
-            return this;
+            return this.service(trade);
         }
     }
 }

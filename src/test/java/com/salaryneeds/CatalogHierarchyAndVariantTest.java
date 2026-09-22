@@ -8,12 +8,10 @@ import com.salaryneeds.dto.catalog.SubCategoryRequestDTO;
 import com.salaryneeds.dto.catalog.SubCategoryResponseDTO;
 import com.salaryneeds.dto.catalog.VariantRequestDTO;
 import com.salaryneeds.dto.catalog.VariantResponseDTO;
-import com.salaryneeds.exception.CategoryNotFoundException;
 import com.salaryneeds.exception.GlobalExceptionHandler;
 import com.salaryneeds.exception.SubCategoryNotFoundException;
 import com.salaryneeds.security.AdminAuthInterceptor;
 import com.salaryneeds.service.CatalogManagementService;
-import com.salaryneeds.service.CatalogService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,8 +22,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;

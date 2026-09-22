@@ -1,7 +1,6 @@
 package com.salaryneeds.controller;
 
 import com.salaryneeds.dto.*;
-import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.service.BookingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

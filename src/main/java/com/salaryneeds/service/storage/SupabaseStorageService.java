@@ -29,4 +29,58 @@ public interface SupabaseStorageService {
      * @return The storage path formatted as categories/{categoryId}/{generatedFileName}
      */
     String uploadCategoryImage(UUID categoryId, byte[] fileBytes, String originalFilename, String contentType);
+
+    /**
+     * Uploads a worker document (Aadhaar, PAN) to Supabase Storage under:
+     * workers/{workerId}/{docType}_{generatedFileName}
+     *
+     * @param workerId ID of the worker
+     * @param docType  Type of document (e.g. AADHAAR_CARD, PAN_CARD)
+     * @param file     Uploaded document file (PNG, JPEG, WebP, PDF; max 5MB)
+     * @return The public URL or storage path of the uploaded document
+     */
+    String uploadWorkerDocument(String workerId, String docType, MultipartFile file);
+
+    /**
+     * Uploads a worker document to Supabase Storage directly from raw bytes.
+     *
+     * @param workerId         ID of the worker
+     * @param docType          Type of document (e.g. AADHAAR_CARD, PAN_CARD)
+     * @param fileBytes        Document content bytes
+     * @param originalFilename Original file name
+     * @param contentType      MIME type
+     * @return The public URL or storage path of the uploaded document
+     */
+    String uploadWorkerDocument(String workerId, String docType, byte[] fileBytes, String originalFilename, String contentType);
+
+    /**
+     * Uploads a catalog asset (category, subcategory, variant) to S3 Storage under:
+     * {folder}/{generatedFileName}
+     *
+     * @param folder Directory/folder name (e.g. "categories", "subcategories", "variants")
+     * @param file   Uploaded image/asset file
+     * @return The public URL of the uploaded catalog asset
+     */
+    String uploadCatalogAsset(String folder, MultipartFile file);
+
+    /**
+     * Uploads a catalog asset directly from raw bytes.
+     *
+     * @param folder           Directory/folder name
+     * @param fileBytes        Asset content bytes
+     * @param originalFilename Original file name
+     * @param contentType      MIME type
+     * @return The public URL of the uploaded catalog asset
+     */
+    String uploadCatalogAsset(String folder, byte[] fileBytes, String originalFilename, String contentType);
+
+    /**
+     * Fetches a remote asset URL and uploads it to S3 Storage under:
+     * {folder}/{generatedFileName}
+     *
+     * @param folder    Directory/folder name
+     * @param remoteUrl External HTTP/HTTPS image URL to fetch and store
+     * @return The public URL in the S3 bucket
+     */
+    String uploadFromUrl(String folder, String remoteUrl);
 }

@@ -1,7 +1,6 @@
 package com.salaryneeds.service;
 
 import com.salaryneeds.dto.ScheduleResponseDTO;
-import com.salaryneeds.entity.Booking;
 import com.salaryneeds.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,7 @@ public class ScheduleService {
         String dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE);
         String dateLabel = resolveDateLabel(date);
 
-        List<Booking> bookedForDate = bookingRepository.findWorkerScheduleForDate(workerId, dateStr);
+        bookingRepository.findWorkerScheduleForDate(workerId, dateStr);
 
         // Build standard 6 fixed 2-hour duty slots (08:00 AM – 08:00 PM)
         List<ScheduleResponseDTO.ScheduleSlot> slots = new ArrayList<>();

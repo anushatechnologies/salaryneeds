@@ -12,8 +12,14 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WorkerLoginResponse {
-    private String token;
+    @Builder.Default
+    private Boolean success = true;
+    private String message;
     private UUID worker_id;
+    private String name;
+    private String phone;
+    private String email;
     private Boolean verified;
     private String account_status;
+    private String token;
 }
