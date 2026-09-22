@@ -31,4 +31,11 @@ public class NotificationController {
         Map<String, Object> response = notificationService.markAsRead(notificationId, workerId);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping({"/customer", "/api/v1/customer/notifications", "/customer/notifications"})
+    public ResponseEntity<Map<String, Object>> getCustomerNotifications(
+            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader) {
+        Map<String, Object> response = notificationService.getCustomerNotifications(customerIdHeader);
+        return ResponseEntity.ok(response);
+    }
 }

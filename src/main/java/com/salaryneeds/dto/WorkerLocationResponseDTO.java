@@ -18,5 +18,8 @@ public class WorkerLocationResponseDTO {
     private Double latitude;
     private Double longitude;
     private Double accuracy;
+    private Double distanceKm;
+    private Integer etaMinutes;
+    private String etaText;
     private LocalDateTime timestamp;
 }

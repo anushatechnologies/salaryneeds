@@ -101,6 +101,27 @@ public class Booking {
     @Builder.Default
     private BigDecimal platformCommission = BigDecimal.ZERO;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", length = 30)
+    @Builder.Default
+    private com.salaryneeds.entity.enums.PaymentStatus paymentStatus = com.salaryneeds.entity.enums.PaymentStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", length = 30)
+    private com.salaryneeds.entity.enums.PaymentMethod paymentMethod;
+
+    @Column(name = "payment_confirmed_at")
+    private LocalDateTime paymentConfirmedAt;
+
+    @Column(name = "payment_received_amount", precision = 12, scale = 2)
+    private BigDecimal paymentReceivedAmount;
+
+    @Column(name = "payment_transaction_ref", length = 100)
+    private String paymentTransactionRef;
+
+    @Column(name = "payment_remarks", length = 500)
+    private String paymentRemarks;
+
     @Column(name = "address_id", length = 36)
     private String addressId;
 

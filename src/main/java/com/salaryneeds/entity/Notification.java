@@ -17,8 +17,15 @@ public class Notification {
     @Column(length = 64)
     private String id;
 
-    @Column(name = "worker_id", nullable = false, length = 64)
+    @Column(name = "worker_id", length = 64)
     private String workerId;
+
+    @Column(name = "customer_id", length = 64)
+    private String customerId;
+
+    @Column(name = "recipient_type", length = 30)
+    @Builder.Default
+    private String recipientType = "WORKER";
 
     @Column(nullable = false, length = 150)
     private String title;

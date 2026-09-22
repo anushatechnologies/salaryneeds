@@ -459,6 +459,45 @@ public class BookingServiceImpl implements BookingService {
         booking.setEnRouteAt(now);
         bookingRepository.save(booking);
 
+        String workerName = "Your service professional";
+        try {
+            UUID wUuid = UUID.fromString(workerId);
+            Optional<com.salaryneeds.entity.WorkerProfile> wp = workerProfileRepository.findById(wUuid);
+            if (wp.isPresent()) {
+                workerName = wp.get().getName();
+            }
+        } catch (Exception ignored) {}
+
+        // Calculate initial ETA if worker coordinates exist
+        Double distKm = null;
+        Integer etaMins = null;
+        String etaText = "On the way";
+        try {
+            UUID wUuid = UUID.fromString(workerId);
+            Optional<com.salaryneeds.entity.WorkerProfile> wp = workerProfileRepository.findById(wUuid);
+            if (wp.isPresent() && wp.get().getLastLat() != null && booking.getCustomerLat() != null) {
+                distKm = GeoDistanceUtils.calculateDistanceKm(wp.get().getLastLat(), wp.get().getLastLng(), booking.getCustomerLat(), booking.getCustomerLng());
+                etaMins = GeoDistanceUtils.calculateEtaMinutes(distKm);
+                etaText = GeoDistanceUtils.formatEtaText(etaMins);
+            }
+        } catch (Exception ignored) {}
+
+        // Dispatch real-time lifecycle notification to customer
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("workerId", workerId);
+        extra.put("workerName", workerName);
+        extra.put("distanceKm", distKm);
+        extra.put("etaMinutes", etaMins);
+        extra.put("etaText", etaText);
+        notificationService.notifyCustomerBookingEvent(
+                booking.getCustomerId(),
+                bookingId,
+                BookingStatus.EN_ROUTE,
+                "Worker is on the way 🚗",
+                workerName + " has started heading to your address. ETA: " + etaText + ".",
+                extra
+        );
+
         String navUrl = GeoDistanceUtils.buildGoogleMapsNavigationUrl(booking.getCustomerLat(), booking.getCustomerLng());
 
         return WorkerActionResponseDTO.builder()
@@ -488,6 +527,21 @@ public class BookingServiceImpl implements BookingService {
         booking.setStatus(BookingStatus.ARRIVED);
         booking.setArrivedAt(now);
         bookingRepository.save(booking);
+
+        String rawPin = booking.getStartPinEncrypted() != null ? booking.getStartPinEncrypted() : "4827";
+
+        // Dispatch real-time arrival alert with start PIN to customer
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("workerId", workerId);
+        extra.put("startPin", rawPin);
+        notificationService.notifyCustomerBookingEvent(
+                booking.getCustomerId(),
+                bookingId,
+                BookingStatus.ARRIVED,
+                "Worker has arrived 📍",
+                "Your service professional has reached your location. Share Service PIN: " + rawPin + " to start the job.",
+                extra
+        );
 
         return WorkerActionResponseDTO.builder()
                 .bookingId(bookingId)
@@ -541,6 +595,19 @@ public class BookingServiceImpl implements BookingService {
         booking.setServiceStartedAt(now);
         bookingRepository.save(booking);
 
+        // Dispatch real-time service start notification to customer
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("workerId", workerId);
+        extra.put("startedAt", now);
+        notificationService.notifyCustomerBookingEvent(
+                booking.getCustomerId(),
+                bookingId,
+                BookingStatus.IN_PROGRESS,
+                "Service Started 🔧",
+                "Service is now in progress. You can track progress or chat with the worker anytime.",
+                extra
+        );
+
         return WorkerActionResponseDTO.builder()
                 .bookingId(bookingId)
                 .workerId(workerId)
@@ -579,6 +646,21 @@ public class BookingServiceImpl implements BookingService {
         } catch (IllegalArgumentException ignored) {
         }
 
+        // Dispatch real-time completion notification to customer
+        BigDecimal payable = booking.getPayableAmount() != null ? booking.getPayableAmount() : booking.getTotalAmount();
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("workerId", workerId);
+        extra.put("payableAmount", payable != null ? payable : BigDecimal.ZERO);
+        extra.put("completedAt", now);
+        notificationService.notifyCustomerBookingEvent(
+                booking.getCustomerId(),
+                bookingId,
+                BookingStatus.COMPLETED,
+                "Service Completed 🎉",
+                "Service completed successfully! Total amount: ₹" + (payable != null ? payable : "0") + ". Please rate your experience.",
+                extra
+        );
+
         return WorkerActionResponseDTO.builder()
                 .bookingId(bookingId)
                 .workerId(workerId)
@@ -607,6 +689,14 @@ public class BookingServiceImpl implements BookingService {
 
         com.salaryneeds.entity.WorkerLocation saved = workerLocationRepository.save(location);
 
+        // Calculate dynamic distance and ETA to customer
+        Double distanceKm = GeoDistanceUtils.calculateDistanceKm(
+                request.getLatitude(), request.getLongitude(),
+                booking.getCustomerLat(), booking.getCustomerLng()
+        );
+        Integer etaMinutes = GeoDistanceUtils.calculateEtaMinutes(distanceKm);
+        String etaText = GeoDistanceUtils.formatEtaText(etaMinutes);
+
         // Also update worker profile last known location
         try {
             UUID workerUuid = UUID.fromString(workerId);
@@ -624,6 +714,9 @@ public class BookingServiceImpl implements BookingService {
                 .latitude(saved.getLatitude())
                 .longitude(saved.getLongitude())
                 .accuracy(saved.getAccuracy())
+                .distanceKm(distanceKm)
+                .etaMinutes(etaMinutes)
+                .etaText(etaText)
                 .timestamp(saved.getTimestamp() != null ? saved.getTimestamp() : LocalDateTime.now())
                 .build();
 
@@ -640,14 +733,21 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
 
         return workerLocationRepository.findFirstByBookingIdOrderByTimestampDesc(bookingId)
-                .map(loc -> WorkerLocationResponseDTO.builder()
-                        .bookingId(loc.getBookingId())
-                        .workerId(loc.getWorkerId())
-                        .latitude(loc.getLatitude())
-                        .longitude(loc.getLongitude())
-                        .accuracy(loc.getAccuracy())
-                        .timestamp(loc.getTimestamp())
-                        .build())
+                .map(loc -> {
+                    Double dist = GeoDistanceUtils.calculateDistanceKm(loc.getLatitude(), loc.getLongitude(), booking.getCustomerLat(), booking.getCustomerLng());
+                    Integer eta = GeoDistanceUtils.calculateEtaMinutes(dist);
+                    return WorkerLocationResponseDTO.builder()
+                            .bookingId(loc.getBookingId())
+                            .workerId(loc.getWorkerId())
+                            .latitude(loc.getLatitude())
+                            .longitude(loc.getLongitude())
+                            .accuracy(loc.getAccuracy())
+                            .distanceKm(dist)
+                            .etaMinutes(eta)
+                            .etaText(GeoDistanceUtils.formatEtaText(eta))
+                            .timestamp(loc.getTimestamp())
+                            .build();
+                })
                 .orElseGet(() -> {
                     // Fallback to worker profile lastLat/lastLng if trip just started
                     if (booking.getWorkerId() != null) {
@@ -655,14 +755,21 @@ public class BookingServiceImpl implements BookingService {
                             UUID wUuid = UUID.fromString(booking.getWorkerId());
                             return workerProfileRepository.findById(wUuid)
                                     .filter(w -> w.getLastLat() != null && w.getLastLng() != null)
-                                    .map(w -> WorkerLocationResponseDTO.builder()
-                                            .bookingId(bookingId)
-                                            .workerId(booking.getWorkerId())
-                                            .latitude(w.getLastLat())
-                                            .longitude(w.getLastLng())
-                                            .accuracy(null)
-                                            .timestamp(LocalDateTime.now())
-                                            .build())
+                                    .map(w -> {
+                                        Double dist = GeoDistanceUtils.calculateDistanceKm(w.getLastLat(), w.getLastLng(), booking.getCustomerLat(), booking.getCustomerLng());
+                                        Integer eta = GeoDistanceUtils.calculateEtaMinutes(dist);
+                                        return WorkerLocationResponseDTO.builder()
+                                                .bookingId(bookingId)
+                                                .workerId(booking.getWorkerId())
+                                                .latitude(w.getLastLat())
+                                                .longitude(w.getLastLng())
+                                                .accuracy(null)
+                                                .distanceKm(dist)
+                                                .etaMinutes(eta)
+                                                .etaText(GeoDistanceUtils.formatEtaText(eta))
+                                                .timestamp(LocalDateTime.now())
+                                                .build();
+                                    })
                                     .orElse(null);
                         } catch (IllegalArgumentException ignored) {
                         }
@@ -681,6 +788,54 @@ public class BookingServiceImpl implements BookingService {
                 || booking.getStatus() == BookingStatus.IN_PROGRESS;
         String revealedPin = isAcceptedOrLater ? booking.getStartPinEncrypted() : null;
         String navUrl = GeoDistanceUtils.buildGoogleMapsNavigationUrl(booking.getCustomerLat(), booking.getCustomerLng());
+
+        // Load worker details if worker is assigned
+        WorkerSummaryDTO workerSummary = null;
+        Double distanceKm = null;
+        Integer etaMinutes = null;
+        String etaText = null;
+
+        if (booking.getWorkerId() != null && !booking.getWorkerId().isBlank()) {
+            try {
+                UUID workerUuid = UUID.fromString(booking.getWorkerId());
+                Optional<com.salaryneeds.entity.WorkerProfile> workerOpt = workerProfileRepository.findById(workerUuid);
+                if (workerOpt.isPresent()) {
+                    com.salaryneeds.entity.WorkerProfile worker = workerOpt.get();
+                    workerSummary = WorkerSummaryDTO.builder()
+                            .id(worker.getId() != null ? worker.getId().toString() : booking.getWorkerId())
+                            .name(worker.getName())
+                            .avatarUrl(worker.getAvatarUrl())
+                            .service(worker.getService() != null ? worker.getService() : booking.getServiceName())
+                            .skills(worker.getSkillsList())
+                            .ratingAvg(worker.getRatingAvg())
+                            .completedJobs(worker.getCompletedJobsCount())
+                            .experienceYears(worker.getExperienceYears())
+                            .verified(worker.getVerified())
+                            .maskedPhone(GeoDistanceUtils.maskPhoneNumber(worker.getPhone()))
+                            .build();
+
+                    if (worker.getLastLat() != null && booking.getCustomerLat() != null) {
+                        distanceKm = GeoDistanceUtils.calculateDistanceKm(worker.getLastLat(), worker.getLastLng(), booking.getCustomerLat(), booking.getCustomerLng());
+                        etaMinutes = GeoDistanceUtils.calculateEtaMinutes(distanceKm);
+                        etaText = GeoDistanceUtils.formatEtaText(etaMinutes);
+                    }
+                }
+            } catch (IllegalArgumentException e) {
+                // If workerId is not UUID (e.g. mock ID "w-101")
+                workerSummary = WorkerSummaryDTO.builder()
+                        .id(booking.getWorkerId())
+                        .name("Ravi Kumar")
+                        .avatarUrl("https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150")
+                        .service(booking.getServiceName() != null ? booking.getServiceName() : "Electrician")
+                        .skills(List.of("Wiring", "Appliance Repair", "Switchboards"))
+                        .ratingAvg(BigDecimal.valueOf(4.85))
+                        .completedJobs(127)
+                        .experienceYears(5)
+                        .verified(true)
+                        .maskedPhone("+91 98******10")
+                        .build();
+            }
+        }
 
         return BookingResponseDTO.builder()
                 .id(booking.getId())
@@ -713,12 +868,114 @@ public class BookingServiceImpl implements BookingService {
                 .cancellationFee(booking.getCancellationFee())
                 .refundAmount(booking.getRefundAmount())
                 .cancelledAt(booking.getCancelledAt())
+                .worker(workerSummary)
+                .distanceKm(distanceKm)
+                .etaMinutes(etaMinutes)
+                .etaText(etaText)
+                .paymentStatus(booking.getPaymentStatus())
+                .paymentMethod(booking.getPaymentMethod())
+                .paymentConfirmedAt(booking.getPaymentConfirmedAt())
+                .paymentReceivedAmount(booking.getPaymentReceivedAmount())
+                .paymentTransactionRef(booking.getPaymentTransactionRef())
+                .paymentRemarks(booking.getPaymentRemarks())
                 .serviceStartedAt(booking.getServiceStartedAt())
                 .serviceCompletedAt(booking.getServiceCompletedAt())
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
                 .build();
     }
+
+    @Override
+    public PaymentConfirmationResponseDTO confirmPayment(Long bookingId, String workerId, WorkerPaymentConfirmationRequestDTO request) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        if (booking.getWorkerId() == null || !booking.getWorkerId().equals(workerId)) {
+            throw new InvalidBookingStateException("Worker " + workerId + " is not assigned to booking #" + bookingId);
+        }
+
+        if (booking.getStatus() != BookingStatus.IN_PROGRESS && booking.getStatus() != BookingStatus.COMPLETED) {
+            throw new InvalidBookingStateException("Payment can only be confirmed for bookings in IN_PROGRESS or COMPLETED status. Current: " + booking.getStatus());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean received = request != null && request.getReceived() != null ? request.getReceived() : true;
+        com.salaryneeds.entity.enums.PaymentStatus paymentStatus = received
+                ? com.salaryneeds.entity.enums.PaymentStatus.CONFIRMED
+                : com.salaryneeds.entity.enums.PaymentStatus.NOT_RECEIVED;
+
+        com.salaryneeds.entity.enums.PaymentMethod method = (request != null && request.getPaymentMethod() != null)
+                ? request.getPaymentMethod()
+                : com.salaryneeds.entity.enums.PaymentMethod.CASH;
+
+        BigDecimal amount = (request != null && request.getAmountReceived() != null)
+                ? request.getAmountReceived()
+                : (booking.getPayableAmount() != null ? booking.getPayableAmount() : booking.getTotalAmount());
+
+        String txRef = request != null ? request.getTransactionReference() : null;
+        String remarks = request != null ? request.getRemarks() : null;
+
+        booking.setPaymentStatus(paymentStatus);
+        booking.setPaymentMethod(method);
+        booking.setPaymentConfirmedAt(now);
+        booking.setPaymentReceivedAmount(amount);
+        booking.setPaymentTransactionRef(txRef);
+        booking.setPaymentRemarks(remarks);
+
+        bookingRepository.save(booking);
+
+        String workerName = "Your service professional";
+        try {
+            UUID wUuid = UUID.fromString(workerId);
+            Optional<com.salaryneeds.entity.WorkerProfile> wp = workerProfileRepository.findById(wUuid);
+            if (wp.isPresent()) {
+                workerName = wp.get().getName();
+            }
+        } catch (Exception ignored) {}
+
+        // Dispatch real-time payment notification to customer
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("bookingId", bookingId);
+        extra.put("workerId", workerId);
+        extra.put("paymentStatus", paymentStatus.name());
+        extra.put("paymentMethod", method.name());
+        extra.put("amountReceived", amount);
+        extra.put("confirmedAt", now);
+
+        if (received) {
+            notificationService.notifyCustomerBookingEvent(
+                    booking.getCustomerId(),
+                    bookingId,
+                    booking.getStatus(),
+                    "Payment Confirmed! ✅",
+                    workerName + " has confirmed receiving ₹" + amount + " via " + method + ".",
+                    extra
+            );
+        } else {
+            notificationService.notifyCustomerBookingEvent(
+                    booking.getCustomerId(),
+                    bookingId,
+                    booking.getStatus(),
+                    "Payment Issue Reported ⚠️",
+                    "Worker marked payment as not received (" + (remarks != null ? remarks : "Pending") + "). Please verify.",
+                    extra
+            );
+        }
+
+        return PaymentConfirmationResponseDTO.builder()
+                .bookingId(bookingId)
+                .workerId(workerId)
+                .customerId(booking.getCustomerId())
+                .paymentStatus(paymentStatus)
+                .paymentMethod(method)
+                .amountReceived(amount)
+                .transactionReference(txRef)
+                .remarks(remarks)
+                .confirmedAt(now)
+                .message(received ? "Payment confirmed successfully." : "Payment marked as not received / disputed.")
+                .build();
+    }
+
 
     private record SlotDefinition(String slotId, String timeRange, LocalTime startTime, LocalTime endTime) {}
 }

@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +35,7 @@ public class BookingOfferServiceImpl implements BookingOfferService {
     private final BookingRepository bookingRepository;
     private final WorkerProfileRepository workerProfileRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final NotificationService notificationService;
 
     private static final java.security.SecureRandom SECURE_RANDOM = new java.security.SecureRandom();
 
@@ -148,6 +150,30 @@ public class BookingOfferServiceImpl implements BookingOfferService {
         // 6. Automatically cancel competing pending offers for this booking
         bookingOfferRepository.cancelCompetingOffers(booking.getId(), offer.getId(), BookingOfferStatus.CANCELLED, now);
         log.info("Booking #{} successfully assigned to worker {}. 4-digit start PIN generated. Competing offers cancelled.", booking.getId(), workerId);
+
+        // 6b. Dispatch customer notification for booking acceptance
+        String workerName = "A verified professional";
+        try {
+            UUID wUuid = UUID.fromString(workerId);
+            Optional<WorkerProfile> wp = workerProfileRepository.findById(wUuid);
+            if (wp.isPresent()) {
+                workerName = wp.get().getName();
+            }
+        } catch (Exception ignored) {}
+
+        java.util.Map<String, Object> extra = new java.util.HashMap<>();
+        extra.put("workerId", workerId);
+        extra.put("workerName", workerName);
+        extra.put("serviceName", booking.getServiceName());
+        extra.put("startPin", rawPin);
+        notificationService.notifyCustomerBookingEvent(
+                booking.getCustomerId(),
+                booking.getId(),
+                BookingStatus.ACCEPTED,
+                "Booking Accepted! ✅",
+                workerName + " has accepted your request and will arrive shortly.",
+                extra
+        );
 
         // 7. Generate Navigation URL to customer
         String navUrl = GeoDistanceUtils.buildGoogleMapsNavigationUrl(booking.getCustomerLat(), booking.getCustomerLng());

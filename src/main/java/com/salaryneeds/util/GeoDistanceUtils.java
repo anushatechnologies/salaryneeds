@@ -94,6 +94,58 @@ public final class GeoDistanceUtils {
     }
 
     /**
+     * Estimates urban travel time in minutes based on distance in kilometers.
+     * Uses an urban transit speed model (approx 22 km/h) plus a small dispatch/parking buffer.
+     *
+     * @param distanceKm Distance in kilometers
+     * @return Estimated travel duration in minutes (0 if at destination)
+     */
+    public static Integer calculateEtaMinutes(Double distanceKm) {
+        if (distanceKm == null || distanceKm <= 0.05) {
+            return 0;
+        }
+        // Average urban speed: 22 km/h (~0.36 km/minute)
+        double travelMinutes = (distanceKm / 22.0) * 60.0;
+        // Add 2 minutes parking/navigation buffer
+        return (int) Math.ceil(travelMinutes + 2.0);
+    }
+
+    /**
+     * Formats ETA minutes into a user-friendly status badge text.
+     *
+     * @param minutes ETA in minutes
+     * @return Formatted string (e.g. "Arrived / Nearby", "1 minute away", "15 minutes away")
+     */
+    public static String formatEtaText(Integer minutes) {
+        if (minutes == null || minutes <= 0) {
+            return "Arrived / Nearby";
+        }
+        if (minutes == 1) {
+            return "1 minute away";
+        }
+        return minutes + " minutes away";
+    }
+
+    /**
+     * Masks a phone number for privacy (e.g. "+91 98765 43210" -> "+91 98*** **210").
+     */
+    public static String maskPhoneNumber(String phone) {
+        if (phone == null || phone.isBlank()) {
+            return "Masked Call Available";
+        }
+        String clean = phone.replaceAll("\\s+", "");
+        if (clean.length() <= 4) {
+            return "****";
+        }
+        int len = clean.length();
+        int visibleStart = Math.min(3, len / 3);
+        int visibleEnd = Math.min(3, len / 3);
+        String prefix = clean.substring(0, visibleStart);
+        String suffix = clean.substring(len - visibleEnd);
+        return prefix + "******" + suffix;
+    }
+
+    /**
      * Generates an Embed API URL for frontend iframe display.
      *
      * @param lat Latitude

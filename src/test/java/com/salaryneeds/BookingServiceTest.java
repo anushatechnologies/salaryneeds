@@ -50,6 +50,18 @@ class BookingServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private com.salaryneeds.service.WorkerMatchingService workerMatchingService;
+
+    @Mock
+    private com.salaryneeds.repository.WorkerProfileRepository workerProfileRepository;
+
+    @Mock
+    private com.salaryneeds.repository.WorkerLocationRepository workerLocationRepository;
+
+    @Mock
+    private com.salaryneeds.service.NotificationService notificationService;
+
     @InjectMocks
     private BookingServiceImpl bookingService;
 
