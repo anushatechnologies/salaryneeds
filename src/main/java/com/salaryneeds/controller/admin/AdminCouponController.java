@@ -63,6 +63,45 @@ public class AdminCouponController {
         return ResponseEntity.ok(couponService.toggleCouponStatus(id, adminId));
     }
 
+    @RequestMapping(
+            value = {"/{id}/activate", "/{id}/active", "/{id}/accept"},
+            method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST}
+    )
+    public ResponseEntity<CouponResponseDTO> activateCoupon(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        UUID adminId = (UUID) httpRequest.getAttribute("adminId");
+        return ResponseEntity.ok(couponService.activateCoupon(id, adminId));
+    }
+
+    @RequestMapping(
+            value = {"/{id}/deactivate", "/{id}/deactive"},
+            method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST}
+    )
+    public ResponseEntity<CouponResponseDTO> deactivateCoupon(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        UUID adminId = (UUID) httpRequest.getAttribute("adminId");
+        return ResponseEntity.ok(couponService.deactivateCoupon(id, adminId));
+    }
+
+    @RequestMapping(
+            value = "/{id}/status",
+            method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST}
+    )
+    public ResponseEntity<CouponResponseDTO> updateCouponStatus(
+            @PathVariable Long id,
+            @RequestParam(value = "active", required = false) Boolean activeParam,
+            @RequestParam(value = "status", required = false) String statusParam,
+            HttpServletRequest httpRequest) {
+        UUID adminId = (UUID) httpRequest.getAttribute("adminId");
+        Boolean targetActive = activeParam;
+        if (targetActive == null && statusParam != null) {
+            targetActive = "active".equalsIgnoreCase(statusParam) || "true".equalsIgnoreCase(statusParam) || "accepted".equalsIgnoreCase(statusParam);
+        }
+        return ResponseEntity.ok(couponService.updateCouponStatus(id, targetActive, adminId));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCoupon(
             @PathVariable Long id,

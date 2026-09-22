@@ -133,15 +133,31 @@ public class AdminCouponService {
 
     @Transactional
     public CouponResponseDTO toggleCouponStatus(Long id, UUID adminId) {
+        return updateCouponStatus(id, null, adminId);
+    }
+
+    @Transactional
+    public CouponResponseDTO activateCoupon(Long id, UUID adminId) {
+        return updateCouponStatus(id, true, adminId);
+    }
+
+    @Transactional
+    public CouponResponseDTO deactivateCoupon(Long id, UUID adminId) {
+        return updateCouponStatus(id, false, adminId);
+    }
+
+    @Transactional
+    public CouponResponseDTO updateCouponStatus(Long id, Boolean active, UUID adminId) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Coupon not found: " + id));
 
-        boolean newStatus = !Boolean.TRUE.equals(coupon.getIsActive());
+        boolean newStatus = active != null ? active : !Boolean.TRUE.equals(coupon.getIsActive());
         coupon.setIsActive(newStatus);
         Coupon updated = couponRepository.save(coupon);
 
-        auditLogService.log(adminId, "TOGGLE_COUPON", "COUPON", updated.getId().toString(),
-                "Toggled active status to " + newStatus + " for " + updated.getCode());
+        String action = newStatus ? "ACTIVATE_COUPON" : "DEACTIVATE_COUPON";
+        auditLogService.log(adminId, action, "COUPON", updated.getId().toString(),
+                (newStatus ? "Activated" : "Deactivated") + " coupon " + updated.getCode());
 
         return toDTO(updated);
     }
@@ -171,6 +187,7 @@ public class AdminCouponService {
                 .usageLimit(coupon.getUsageLimit())
                 .usedCount(coupon.getUsedCount())
                 .isActive(coupon.getIsActive())
+                .isAccepted(coupon.getIsActive())
                 .isCurrentlyValid(coupon.isCurrentlyValid())
                 .createdAt(coupon.getCreatedAt())
                 .updatedAt(coupon.getUpdatedAt())

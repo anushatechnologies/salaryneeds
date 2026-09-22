@@ -17,10 +17,10 @@ public class CouponController {
 
     private final CouponService couponService;
 
-    // Public: List available coupons
+    // Public: List available coupons (User panel: only show admin-accepted / active coupons)
     @GetMapping({"/api/coupons", "/coupons"})
     public ResponseEntity<java.util.List<CouponDTO>> getAvailableCoupons() {
-        return ResponseEntity.ok(couponService.getAllCoupons());
+        return ResponseEntity.ok(couponService.getAvailableCoupons());
     }
 
     // Public: Get coupon by code
@@ -106,12 +106,54 @@ public class CouponController {
         return ResponseEntity.ok(couponService.patchCoupon(id, couponDTO));
     }
 
-    @PatchMapping({"/api/admin/coupons/{id}/status", "/admin/coupons/{id}/status"})
-    public ResponseEntity<CouponDTO> toggleCouponStatus(@PathVariable Long id) {
-        CouponDTO existing = couponService.getCouponById(id);
-        boolean currentStatus = existing.getIsActive() != null ? existing.getIsActive() : true;
-        existing.setIsActive(!currentStatus);
-        return ResponseEntity.ok(couponService.patchCoupon(id, existing));
+    // Admin: Activate / Accept coupon
+    @RequestMapping(
+            value = {
+                "/api/admin/coupons/{id}/activate", "/admin/coupons/{id}/activate",
+                "/api/admin/coupons/{id}/active", "/admin/coupons/{id}/active",
+                "/api/admin/coupons/{id}/accept", "/admin/coupons/{id}/accept",
+                "/api/coupons/{id}/activate", "/coupons/{id}/activate",
+                "/api/coupons/{id}/active", "/coupons/{id}/active",
+                "/api/coupons/{id}/accept", "/coupons/{id}/accept"
+            },
+            method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST}
+    )
+    public ResponseEntity<CouponDTO> activateCoupon(@PathVariable Long id) {
+        return ResponseEntity.ok(couponService.activateCoupon(id));
+    }
+
+    // Admin: Deactivate / Deactive coupon
+    @RequestMapping(
+            value = {
+                "/api/admin/coupons/{id}/deactivate", "/admin/coupons/{id}/deactivate",
+                "/api/admin/coupons/{id}/deactive", "/admin/coupons/{id}/deactive",
+                "/api/coupons/{id}/deactivate", "/coupons/{id}/deactivate",
+                "/api/coupons/{id}/deactive", "/coupons/{id}/deactive"
+            },
+            method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST}
+    )
+    public ResponseEntity<CouponDTO> deactivateCoupon(@PathVariable Long id) {
+        return ResponseEntity.ok(couponService.deactivateCoupon(id));
+    }
+
+    @RequestMapping(
+            value = {"/api/admin/coupons/{id}/status", "/admin/coupons/{id}/status"},
+            method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST}
+    )
+    public ResponseEntity<CouponDTO> updateCouponStatus(
+            @PathVariable Long id,
+            @RequestParam(value = "active", required = false) Boolean activeParam,
+            @RequestParam(value = "status", required = false) String statusParam,
+            @RequestBody(required = false) CouponDTO body
+    ) {
+        Boolean targetActive = activeParam;
+        if (targetActive == null && statusParam != null) {
+            targetActive = "active".equalsIgnoreCase(statusParam) || "true".equalsIgnoreCase(statusParam) || "accepted".equalsIgnoreCase(statusParam);
+        }
+        if (targetActive == null && body != null && body.getActive() != null) {
+            targetActive = body.getActive();
+        }
+        return ResponseEntity.ok(couponService.updateCouponStatus(id, targetActive));
     }
 
     @PutMapping({"/api/admin/coupons/{id}", "/admin/coupons/{id}"})

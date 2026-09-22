@@ -254,4 +254,58 @@ public class CouponControllerTest {
                 .andExpect(jsonPath("$.usage_count").value(5))
                 .andExpect(jsonPath("$.redemptions.content[0].booking_id").value(100));
     }
+
+    @Test
+    @DisplayName("GET /api/coupons - User panel lists only available/accepted coupons")
+    void testGetAvailableCoupons_Success() throws Exception {
+        CouponDTO dto = CouponDTO.builder().id(1L).code("ACTIVE1").active(true).build();
+        when(couponService.getAvailableCoupons()).thenReturn(List.of(dto));
+
+        mockMvc.perform(get("/api/coupons"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].code").value("ACTIVE1"))
+                .andExpect(jsonPath("$[0].active").value(true))
+                .andExpect(jsonPath("$[0].isAccepted").value(true));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/admin/coupons/{id}/activate - Admin activates/accepts coupon")
+    void testActivateCoupon_Success() throws Exception {
+        CouponDTO response = CouponDTO.builder().id(1L).code("CODE1").active(true).build();
+        when(couponService.activateCoupon(1L)).thenReturn(response);
+
+        mockMvc.perform(patch("/api/admin/coupons/1/activate")
+                        .header("X-Role", "ADMIN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.isAccepted").value(true));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/admin/coupons/{id}/deactivate - Admin deactivates coupon")
+    void testDeactivateCoupon_Success() throws Exception {
+        CouponDTO response = CouponDTO.builder().id(1L).code("CODE1").active(false).build();
+        when(couponService.deactivateCoupon(1L)).thenReturn(response);
+
+        mockMvc.perform(patch("/api/admin/coupons/1/deactivate")
+                        .header("X-Role", "ADMIN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.active").value(false))
+                .andExpect(jsonPath("$.isAccepted").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /api/admin/coupons/{id}/accept - Admin accepts coupon")
+    void testAcceptCoupon_Success() throws Exception {
+        CouponDTO response = CouponDTO.builder().id(1L).code("CODE1").active(true).build();
+        when(couponService.activateCoupon(1L)).thenReturn(response);
+
+        mockMvc.perform(post("/api/admin/coupons/1/accept")
+                        .header("X-Role", "ADMIN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.active").value(true));
+    }
 }

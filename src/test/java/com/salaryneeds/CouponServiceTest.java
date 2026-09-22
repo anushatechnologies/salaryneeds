@@ -375,4 +375,54 @@ class CouponServiceTest {
         couponService.deleteCoupon(20L);
         verify(couponRepository, times(1)).deleteById(20L);
     }
+
+    @Test
+    @DisplayName("Admin activates/accepts coupon successfully")
+    void testActivateCoupon() {
+        Coupon existing = Coupon.builder().id(30L).code("ACT1").isActive(false).build();
+        when(couponRepository.findById(30L)).thenReturn(Optional.of(existing));
+        when(couponRepository.save(any(Coupon.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CouponDTO result = couponService.activateCoupon(30L);
+
+        assertTrue(result.getActive());
+        assertTrue(result.getIsAccepted());
+        verify(couponRepository, times(1)).save(existing);
+    }
+
+    @Test
+    @DisplayName("Admin deactivates coupon successfully")
+    void testDeactivateCoupon() {
+        Coupon existing = Coupon.builder().id(31L).code("DEACT1").isActive(true).build();
+        when(couponRepository.findById(31L)).thenReturn(Optional.of(existing));
+        when(couponRepository.save(any(Coupon.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CouponDTO result = couponService.deactivateCoupon(31L);
+
+        assertFalse(result.getActive());
+        assertFalse(result.getIsAccepted());
+        verify(couponRepository, times(1)).save(existing);
+    }
+
+    @Test
+    @DisplayName("User panel getAvailableCoupons returns only active coupons")
+    void testGetAvailableCoupons_OnlyActive() {
+        Coupon activeCoupon = Coupon.builder().id(32L).code("AVAIL1").isActive(true).build();
+        when(couponRepository.findByIsActive(true)).thenReturn(List.of(activeCoupon));
+
+        List<CouponDTO> result = couponService.getAvailableCoupons();
+
+        assertEquals(1, result.size());
+        assertEquals("AVAIL1", result.get(0).getCode());
+        assertTrue(result.get(0).getActive());
+    }
+
+    @Test
+    @DisplayName("User panel getCouponByCode throws CouponNotFoundException if inactive")
+    void testGetCouponByCode_InactiveThrows() {
+        Coupon inactiveCoupon = Coupon.builder().id(33L).code("HIDDEN").isActive(false).build();
+        when(couponRepository.findByCodeIgnoreCase("HIDDEN")).thenReturn(Optional.of(inactiveCoupon));
+
+        assertThrows(CouponNotFoundException.class, () -> couponService.getCouponByCode("HIDDEN"));
+    }
 }

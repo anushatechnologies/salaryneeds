@@ -20,8 +20,16 @@ public class LocationHeartbeatRequest {
         return speed;
     }
 
+    public void setSpeedKmh(Double speedKmh) {
+        this.speed = speedKmh;
+    }
+
     public Integer getBatteryPct() {
         return batteryLevel;
+    }
+
+    public void setBatteryPct(Integer batteryPct) {
+        this.batteryLevel = batteryPct;
     }
 
     public Boolean getIsMoving() {

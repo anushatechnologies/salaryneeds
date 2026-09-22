@@ -23,6 +23,7 @@ public class CouponResponseDTO {
     private Integer usageLimit;
     private Integer usedCount;
     private Boolean isActive;
+    private Boolean isAccepted;
     private Boolean isCurrentlyValid;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

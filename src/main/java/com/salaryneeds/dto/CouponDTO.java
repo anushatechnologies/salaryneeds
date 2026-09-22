@@ -66,7 +66,7 @@ public class CouponDTO {
     private Integer usedCount;
 
     @JsonProperty("active")
-    @JsonAlias({"active", "isActive", "is_active"})
+    @JsonAlias({"active", "isActive", "is_active", "isAccepted", "is_accepted", "accepted"})
     private Boolean active;
 
     @JsonProperty("created_at")
@@ -92,6 +92,15 @@ public class CouponDTO {
 
     public void setIsActive(Boolean isActive) {
         this.active = isActive;
+    }
+
+    @JsonProperty("isAccepted")
+    public Boolean getIsAccepted() {
+        return getIsActive();
+    }
+
+    public void setIsAccepted(Boolean isAccepted) {
+        this.active = isAccepted;
     }
 
     public static CouponDTO fromEntity(Coupon coupon) {

@@ -240,6 +240,14 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<CouponDTO> getAvailableCoupons() {
+        return couponRepository.findByIsActive(true).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponseDTO<CouponDTO> getAllCoupons(Boolean active, String code, Pageable pageable) {
         Page<Coupon> page;
         if (active != null && code != null && !code.isBlank()) {
@@ -280,6 +288,10 @@ public class CouponServiceImpl implements CouponService {
     public CouponDTO getCouponByCode(String code) {
         Coupon coupon = couponRepository.findByCodeIgnoreCase(code.trim())
                 .orElseThrow(() -> new CouponNotFoundException("Coupon not found with code: " + code));
+        Boolean active = coupon.getActive() != null ? coupon.getActive() : coupon.getIsActive();
+        if (!Boolean.TRUE.equals(active)) {
+            throw new CouponNotFoundException("Coupon not found or inactive: " + code);
+        }
         return mapToDTO(coupon);
     }
 
@@ -338,6 +350,37 @@ public class CouponServiceImpl implements CouponService {
     @Override
     public CouponDTO patchCoupon(Long id, CouponDTO couponDTO) {
         return updateCoupon(id, couponDTO);
+    }
+
+    @Override
+    public CouponDTO activateCoupon(Long id) {
+        Coupon coupon = couponRepository.findById(id)
+                .orElseThrow(() -> new CouponNotFoundException("Coupon not found with ID: " + id));
+        coupon.setIsActive(true);
+        coupon.setActive(true);
+        Coupon updated = couponRepository.save(coupon);
+        return mapToDTO(updated);
+    }
+
+    @Override
+    public CouponDTO deactivateCoupon(Long id) {
+        Coupon coupon = couponRepository.findById(id)
+                .orElseThrow(() -> new CouponNotFoundException("Coupon not found with ID: " + id));
+        coupon.setIsActive(false);
+        coupon.setActive(false);
+        Coupon updated = couponRepository.save(coupon);
+        return mapToDTO(updated);
+    }
+
+    @Override
+    public CouponDTO updateCouponStatus(Long id, Boolean active) {
+        Coupon coupon = couponRepository.findById(id)
+                .orElseThrow(() -> new CouponNotFoundException("Coupon not found with ID: " + id));
+        boolean targetStatus = active != null ? active : !Boolean.TRUE.equals(coupon.getIsActive());
+        coupon.setIsActive(targetStatus);
+        coupon.setActive(targetStatus);
+        Coupon updated = couponRepository.save(coupon);
+        return mapToDTO(updated);
     }
 
     @Override

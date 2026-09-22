@@ -22,6 +22,8 @@ public interface CouponService {
 
     List<CouponDTO> getAllCoupons();
 
+    List<CouponDTO> getAvailableCoupons();
+
     PageResponseDTO<CouponDTO> getAllCoupons(Boolean active, String code, Pageable pageable);
 
     CouponDTO getCouponById(Long id);
@@ -29,6 +31,12 @@ public interface CouponService {
     CouponDTO updateCoupon(Long id, CouponDTO couponDTO);
 
     CouponDTO patchCoupon(Long id, CouponDTO couponDTO);
+
+    CouponDTO activateCoupon(Long id);
+
+    CouponDTO deactivateCoupon(Long id);
+
+    CouponDTO updateCouponStatus(Long id, Boolean active);
 
     CouponRedemptionsResponseDTO getCouponRedemptions(Long id, Pageable pageable);
 
