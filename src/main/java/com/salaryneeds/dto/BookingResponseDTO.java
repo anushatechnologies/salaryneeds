@@ -46,6 +46,16 @@ public class BookingResponseDTO {
     private BigDecimal cancellationFee;
     private BigDecimal refundAmount;
     private LocalDateTime cancelledAt;
+    private WorkerSummaryDTO worker;
+    private Double distanceKm;
+    private Integer etaMinutes;
+    private String etaText;
+    private com.salaryneeds.entity.enums.PaymentStatus paymentStatus;
+    private com.salaryneeds.entity.enums.PaymentMethod paymentMethod;
+    private LocalDateTime paymentConfirmedAt;
+    private BigDecimal paymentReceivedAmount;
+    private String paymentTransactionRef;
+    private String paymentRemarks;
     private LocalDateTime serviceStartedAt;
     private LocalDateTime serviceCompletedAt;
     private LocalDateTime createdAt;

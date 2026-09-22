@@ -36,4 +36,6 @@ public interface BookingService {
     WorkerLocationResponseDTO updateWorkerLocation(Long bookingId, String workerId, WorkerLocationRequestDTO request);
 
     WorkerLocationResponseDTO getLatestWorkerLocation(Long bookingId);
+
+    PaymentConfirmationResponseDTO confirmPayment(Long bookingId, String workerId, WorkerPaymentConfirmationRequestDTO request);
 }

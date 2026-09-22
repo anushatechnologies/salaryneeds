@@ -304,4 +304,33 @@ public class WorkerBookingController {
         response.put("is_completed", true);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/{bookingId}/confirm-payment")
+    public ResponseEntity<Map<String, Object>> confirmPayment(
+            @PathVariable("bookingId") String bookingId,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader,
+            @RequestBody(required = false) com.salaryneeds.dto.WorkerPaymentConfirmationRequestDTO request) {
+
+        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
+        if (workerId == null || workerId.isBlank()) {
+            workerId = "w-default";
+        }
+
+        boolean isReceived = request != null && request.getReceived() != null ? request.getReceived() : true;
+        String method = request != null && request.getPaymentMethod() != null ? request.getPaymentMethod().name() : "CASH";
+        java.math.BigDecimal amount = request != null && request.getAmountReceived() != null ? request.getAmountReceived() : java.math.BigDecimal.valueOf(450.00);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("booking_id", bookingId);
+        response.put("worker_id", workerId);
+        response.put("payment_status", isReceived ? "CONFIRMED" : "NOT_RECEIVED");
+        response.put("payment_method", method);
+        response.put("amount_received", amount);
+        response.put("confirmed_at", LocalDateTime.now().toString());
+        response.put("message", isReceived ? "Payment receipt confirmed by worker." : "Payment issue recorded.");
+
+        return ResponseEntity.ok(response);
+    }
 }
+

@@ -11,7 +11,11 @@ public interface NotificationService {
 
     void broadcastWorkerLocation(Long bookingId, WorkerLocationResponseDTO location);
 
+    void notifyCustomerBookingEvent(String customerId, Long bookingId, com.salaryneeds.entity.enums.BookingStatus status, String title, String message, Map<String, Object> extraData);
+
     Map<String, Object> getNotifications(String workerId);
+
+    Map<String, Object> getCustomerNotifications(String customerId);
 
     Map<String, Object> markAsRead(String notificationId, String workerId);
 }

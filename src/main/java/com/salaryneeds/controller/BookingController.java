@@ -187,4 +187,23 @@ public class BookingController {
         }
         return ResponseEntity.ok(location);
     }
+
+    // Worker Action: Confirm Payment received / not received
+    @PostMapping("/{bookingId}/confirm-payment")
+    public ResponseEntity<PaymentConfirmationResponseDTO> confirmPayment(
+            @PathVariable Long bookingId,
+            @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader,
+            @RequestParam(value = "workerId", required = false) String workerIdParam,
+            @RequestBody(required = false) WorkerPaymentConfirmationRequestDTO request
+    ) {
+        String effectiveWorkerId = (workerIdHeader != null && !workerIdHeader.isBlank()) ? workerIdHeader.trim() : workerIdParam;
+        if (effectiveWorkerId == null || effectiveWorkerId.isBlank()) {
+            effectiveWorkerId = com.salaryneeds.security.WorkerContext.getWorkerId();
+        }
+        if (effectiveWorkerId == null || effectiveWorkerId.isBlank()) {
+            throw new IllegalArgumentException("Worker ID is required in X-Worker-Id header or workerId query param");
+        }
+        return ResponseEntity.ok(bookingService.confirmPayment(bookingId, effectiveWorkerId, request));
+    }
 }
+
