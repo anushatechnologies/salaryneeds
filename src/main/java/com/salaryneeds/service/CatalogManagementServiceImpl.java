@@ -73,12 +73,9 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             return;
         }
         try {
-            CategoryResponseDTO dto = mapToCategoryResponseDTO(category, true);
-            byte[] bytes = objectMapper.writeValueAsBytes(dto);
-            supabaseStorageService.uploadCatalogJson("categories/" + category.getId() + "/category.json", bytes);
-            log.info("Synced Category JSON to S3: categories/{}/category.json", category.getId());
-        } catch (Exception e) {
-            log.warn("Notice: could not sync category JSON to S3: {}", e.getMessage());
+            // Storage bucket is dedicated to real images and documents only; clean up any existing JSON metadata
+            supabaseStorageService.deleteFile("categories/" + category.getId() + "/category.json");
+        } catch (Exception ignored) {
         }
     }
 
@@ -87,12 +84,9 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             return;
         }
         try {
-            SubCategoryResponseDTO dto = mapToSubCategoryResponseDTO(item);
-            byte[] bytes = objectMapper.writeValueAsBytes(dto);
-            supabaseStorageService.uploadCatalogJson("subcategories/" + item.getId() + "/subcategory.json", bytes);
-            log.info("Synced SubCategory JSON to S3: subcategories/{}/subcategory.json", item.getId());
-        } catch (Exception e) {
-            log.warn("Notice: could not sync subcategory JSON to S3: {}", e.getMessage());
+            // Storage bucket is dedicated to real images and documents only; clean up any existing JSON metadata
+            supabaseStorageService.deleteFile("subcategories/" + item.getId() + "/subcategory.json");
+        } catch (Exception ignored) {
         }
     }
 
@@ -101,12 +95,9 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             return;
         }
         try {
-            VariantResponseDTO dto = mapToVariantResponseDTO(variant);
-            byte[] bytes = objectMapper.writeValueAsBytes(dto);
-            supabaseStorageService.uploadCatalogJson("variants/" + variant.getId() + "/variant.json", bytes);
-            log.info("Synced Variant JSON to S3: variants/{}/variant.json", variant.getId());
-        } catch (Exception e) {
-            log.warn("Notice: could not sync variant JSON to S3: {}", e.getMessage());
+            // Storage bucket is dedicated to real images and documents only; clean up any existing JSON metadata
+            supabaseStorageService.deleteFile("variants/" + variant.getId() + "/variant.json");
+        } catch (Exception ignored) {
         }
     }
 
@@ -1197,14 +1188,11 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
             varCount++;
         }
 
-        String treeUrl = null;
         if (supabaseStorageService != null) {
             try {
-                List<CategoryResponseDTO> tree = getActiveCategories();
-                byte[] treeBytes = objectMapper.writeValueAsBytes(tree);
-                treeUrl = supabaseStorageService.uploadCatalogJson("catalog/catalog-tree.json", treeBytes);
-            } catch (Exception e) {
-                log.warn("Notice: could not upload catalog-tree.json to S3: {}", e.getMessage());
+                // Storage bucket is dedicated to real images and documents only; clean up any existing JSON metadata
+                supabaseStorageService.deleteFile("catalog/catalog-tree.json");
+            } catch (Exception ignored) {
             }
         }
 
@@ -1213,8 +1201,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         result.put("categoriesSynced", catCount);
         result.put("subcategoriesSynced", subCount);
         result.put("variantsSynced", varCount);
-        result.put("catalogTreeUrl", treeUrl);
-        result.put("message", "Catalog successfully synchronized to S3 bucket");
+        result.put("message", "Catalog images successfully synchronized to Supabase storage. JSON metadata files disabled.");
         return result;
     }
 }

@@ -92,4 +92,12 @@ public interface SupabaseStorageService {
      * @return The public URL of the uploaded JSON object in S3
      */
     String uploadCatalogJson(String storagePath, byte[] jsonBytes);
+
+    /**
+     * Deletes a file from Supabase Storage by path.
+     *
+     * @param storagePath Key/path in S3 to delete
+     * @return true if deleted or not found, false otherwise
+     */
+    boolean deleteFile(String storagePath);
 }

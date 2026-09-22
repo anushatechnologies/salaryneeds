@@ -336,27 +336,9 @@ public class WorkerService {
             return;
         }
         try {
-            java.util.Map<String, Object> details = new java.util.HashMap<>();
-            details.put("workerId", worker.getId().toString());
-            details.put("name", worker.getName());
-            details.put("phone", worker.getPhone());
-            details.put("email", worker.getEmail());
-            details.put("category", worker.getCategory() != null ? worker.getCategory().getName() : "");
-            details.put("categoryId", worker.getCategory() != null && worker.getCategory().getId() != null ? worker.getCategory().getId().toString() : "");
-            details.put("service", worker.getService());
-            details.put("skills", worker.getSkills());
-            details.put("experienceYears", worker.getExperienceYears());
-            details.put("pincode", worker.getPincode());
-            details.put("city", worker.getCity());
-            details.put("address", worker.getAddress());
-            details.put("accountStatus", worker.getAccountStatus() != null ? worker.getAccountStatus().name() : "PENDING_APPROVAL");
-            details.put("registeredAt", LocalDateTime.now().toString());
-
-            byte[] jsonBytes = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(details);
-            supabaseStorageService.uploadWorkerDocument(worker.getId().toString(), "profile", jsonBytes, "profile.json", "application/json");
-            log.info("Uploaded worker profile details JSON to S3 bucket for worker: {}", worker.getId());
-        } catch (Exception e) {
-            log.warn("Notice: could not upload worker profile JSON to S3: {}", e.getMessage());
+            // Storage bucket is dedicated to real images and documents only; do not upload profile JSON
+            supabaseStorageService.deleteFile("workers/" + worker.getId() + "/profile.json");
+        } catch (Exception ignored) {
         }
     }
 

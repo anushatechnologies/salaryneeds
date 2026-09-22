@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -378,6 +379,26 @@ public class SupabaseStorageServiceImpl implements SupabaseStorageService {
         } catch (Exception e) {
             log.warn("S3 upload failed for catalog JSON key '{}': {}. Returning fallback URL.", cleanPath, e.getMessage());
             return resolvePublicUrl(cleanPath);
+        }
+    }
+
+    @Override
+    public boolean deleteFile(String storagePath) {
+        if (storagePath == null || storagePath.isBlank()) {
+            return false;
+        }
+        String cleanPath = storagePath.startsWith("/") ? storagePath.substring(1) : storagePath;
+        try {
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(cleanPath)
+                    .build();
+            s3Client.deleteObject(deleteObjectRequest);
+            log.info("Successfully deleted file from S3 bucket '{}' at path '{}'", bucket, cleanPath);
+            return true;
+        } catch (Exception e) {
+            log.warn("Notice: could not delete file from S3 bucket '{}' at path '{}': {}", bucket, cleanPath, e.getMessage());
+            return false;
         }
     }
 }
