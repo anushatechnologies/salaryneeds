@@ -14,7 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping({"/api/worker", "/worker", "/auth/worker", "/api/auth/worker", "/worker/auth", "/api/worker/auth", "/v1/worker/auth"})
+@RequestMapping({"/api/worker", "/worker", "/auth/worker", "/api/auth/worker", "/api/worker/auth"})
 public class WorkerAuthController {
 
     @Autowired

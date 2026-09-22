@@ -18,6 +18,9 @@ public class WorkerAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+        if (path.contains("/bookings/")) {
+            return false;
+        }
         return path.contains("/auth/") ||
                path.contains("/register") ||
                path.contains("/signup") ||
