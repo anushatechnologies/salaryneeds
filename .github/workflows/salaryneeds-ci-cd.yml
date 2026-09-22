@@ -66,7 +66,50 @@ jobs:
           strip_components: 1
           overwrite: true
 
-      # 6. Start application and verify health
+      # 6. Configure Supabase PostgreSQL credentials on EC2
+      - name: Configure database environment
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Writing Supabase PostgreSQL credentials to environment file..."
+            sudo tee /opt/salaryneeds/salaryneeds.env > /dev/null <<'ENVEOF'
+            DB_URL=jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require&prepareThreshold=0
+            DB_USER=postgres.jbgctbgqymrdurkumwes
+            DB_PASSWORD=${{ secrets.SUPABASE_DB_PASSWORD || 'SalaryNeeds@123' }}
+            DB_DRIVER=org.postgresql.Driver
+            SPRING_JPA_HIBERNATE_DDL_AUTO=update
+            SERVER_PORT=8080
+            ENVEOF
+            sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds.env
+            sudo chmod 600 /opt/salaryneeds/salaryneeds.env
+
+            echo "Updating systemd service to use environment file..."
+            sudo tee /etc/systemd/system/salaryneeds.service > /dev/null <<'SVCEOF'
+            [Unit]
+            Description=SalaryNeeds Spring Boot Application
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=ec2-user
+            WorkingDirectory=/opt/salaryneeds
+            EnvironmentFile=/opt/salaryneeds/salaryneeds.env
+            ExecStart=/usr/bin/java -jar /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
+            Restart=on-failure
+            RestartSec=10
+            StandardOutput=journal
+            StandardError=journal
+
+            [Install]
+            WantedBy=multi-user.target
+            SVCEOF
+
+            sudo systemctl daemon-reload
+
+      # 7. Start application and verify health
       - name: Start and verify SalaryNeeds
         uses: appleboy/ssh-action@v1
         with:
@@ -81,25 +124,26 @@ jobs:
             sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
             sudo chmod 755 /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
 
-            echo "Starting SalaryNeeds..."
+            echo "Starting SalaryNeeds with Supabase PostgreSQL..."
             sudo systemctl restart salaryneeds
 
             echo "Waiting for application to become healthy..."
             HEALTHY=0
-            for i in {1..24}; do
+            for i in {1..30}; do
               if curl -s -f http://localhost:8080/actuator/health > /dev/null; then
-                echo "Application is healthy!"
-                curl http://localhost:8080/actuator/health
+                (curl -s http://localhost:8080/actuator/health | python3 -m json.tool 2>/dev/null) || curl -s http://localhost:8080/actuator/health
+                echo ""
                 HEALTHY=1
                 break
               fi
-              echo "Waiting for app to start... ($i/24)"
+              echo "Waiting for app to start... ($i/30)"
               sleep 5
             done
 
             if [ $HEALTHY -eq 0 ]; then
               echo "Health check failed! Service status and recent logs:"
               sudo systemctl status salaryneeds -l --no-pager || true
-              sudo journalctl -u salaryneeds.service -n 50 --no-pager || true
+              sudo journalctl -u salaryneeds.service -n 80 --no-pager || true
               exit 1
             fi
+
