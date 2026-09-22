@@ -3,16 +3,16 @@ package com.salaryneeds.service;
 import com.salaryneeds.dto.*;
 import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Booking;
+import com.salaryneeds.entity.BookingItem;
+import com.salaryneeds.entity.Cart;
+import com.salaryneeds.entity.CartItem;
 import com.salaryneeds.entity.Customer;
 import com.salaryneeds.entity.ServiceItem;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.entity.enums.BookingStatusTab;
+import com.salaryneeds.entity.enums.CartStatus;
 import com.salaryneeds.exception.*;
-import com.salaryneeds.repository.AddressRepository;
-import com.salaryneeds.repository.BookingRepository;
-import com.salaryneeds.repository.CustomerRepository;
-import com.salaryneeds.repository.ServiceItemRepository;
-import com.salaryneeds.repository.WorkerProfileRepository;
+import com.salaryneeds.repository.*;
 import com.salaryneeds.util.GeoDistanceUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -47,6 +47,8 @@ public class BookingServiceImpl implements BookingService {
     private final WorkerProfileRepository workerProfileRepository;
     private final com.salaryneeds.repository.WorkerLocationRepository workerLocationRepository;
     private final NotificationService notificationService;
+    private final CartRepository cartRepository;
+    private final BookingItemRepository bookingItemRepository;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -219,6 +221,231 @@ public class BookingServiceImpl implements BookingService {
         }
 
         return mapToResponseDTO(savedBooking);
+    }
+
+    @Override
+    @Transactional
+    public CartCheckoutResponseDTO checkoutCart(CartCheckoutRequestDTO request, String customerIdHeader) {
+        String effectiveCustomerId = (customerIdHeader != null && !customerIdHeader.isBlank())
+                ? customerIdHeader.trim()
+                : null;
+
+        if (effectiveCustomerId == null || effectiveCustomerId.isBlank()) {
+            throw new IllegalArgumentException("Customer ID is required in X-Customer-Id header to checkout");
+        }
+
+        // Validate customer if valid UUID
+        try {
+            UUID custUuid = UUID.fromString(effectiveCustomerId);
+            if (!customerRepository.existsById(custUuid)) {
+                throw new CustomerNotFoundException("Customer not found with id: " + effectiveCustomerId);
+            }
+        } catch (IllegalArgumentException e) {
+            // Non-UUID customer identifier, allow
+        }
+
+        // Retrieve customer's ACTIVE cart
+        Cart cart = cartRepository.findByCustomerIdAndStatus(effectiveCustomerId, CartStatus.ACTIVE)
+                .orElseThrow(() -> new IllegalStateException("No active cart found for customer: " + effectiveCustomerId));
+
+        if (cart.getItems() == null || cart.getItems().isEmpty()) {
+            throw new IllegalStateException("Cart is empty. Please add items to cart before proceeding to booking.");
+        }
+
+        // Address resolution & validation
+        String addressSummary = null;
+        Double customerLat = request.getCustomerLat();
+        Double customerLng = request.getCustomerLng();
+
+        if (request.getAddressId() != null && !request.getAddressId().isBlank()) {
+            try {
+                UUID addrUuid = UUID.fromString(request.getAddressId());
+                try {
+                    UUID custUuid = UUID.fromString(effectiveCustomerId);
+                    // Verify address belongs to this customer (Ownership check)
+                    Optional<Address> addrOpt = addressRepository.findByIdAndCustomerId(addrUuid, custUuid);
+                    if (addrOpt.isPresent()) {
+                        Address addr = addrOpt.get();
+                        addressSummary = addr.toFormattedAddress();
+                        if (customerLat == null) customerLat = addr.getLat();
+                        if (customerLng == null) customerLng = addr.getLng();
+                    } else {
+                        throw new IllegalArgumentException("Address does not belong to customer: " + request.getAddressId());
+                    }
+                } catch (IllegalArgumentException e) {
+                    if (addressSummary == null) {
+                        Optional<Address> addrOpt = addressRepository.findById(addrUuid);
+                        if (addrOpt.isPresent()) {
+                            Address addr = addrOpt.get();
+                            addressSummary = addr.toFormattedAddress();
+                            if (customerLat == null) customerLat = addr.getLat();
+                            if (customerLng == null) customerLng = addr.getLng();
+                        }
+                    }
+                }
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+
+        if (addressSummary == null && request.getAddress() != null && !request.getAddress().isBlank()) {
+            addressSummary = request.getAddress().trim();
+        }
+
+        if (addressSummary == null) {
+            // Check if customer has a default address
+            try {
+                UUID custUuid = UUID.fromString(effectiveCustomerId);
+                List<Address> defaultAddrs = addressRepository.findByCustomerIdAndIsDefaultTrue(custUuid);
+                if (!defaultAddrs.isEmpty()) {
+                    Address addr = defaultAddrs.get(0);
+                    addressSummary = addr.toFormattedAddress();
+                    if (customerLat == null) customerLat = addr.getLat();
+                    if (customerLng == null) customerLng = addr.getLng();
+                } else {
+                    List<Address> allAddrs = addressRepository.findByCustomerId(custUuid);
+                    if (!allAddrs.isEmpty()) {
+                        Address addr = allAddrs.get(0);
+                        addressSummary = addr.toFormattedAddress();
+                        if (customerLat == null) customerLat = addr.getLat();
+                        if (customerLng == null) customerLng = addr.getLng();
+                    }
+                }
+            } catch (IllegalArgumentException ignored) {}
+        }
+
+        if (addressSummary == null || addressSummary.isBlank()) {
+            throw new IllegalArgumentException("Service address is required to checkout. Please provide an address or addressId.");
+        }
+
+        LocalDate scheduledDate = request.getScheduledDate() != null ? request.getScheduledDate() : LocalDate.now(BUSINESS_ZONE);
+        String scheduledTime = request.getScheduledTime() != null ? request.getScheduledTime() : "09:00 AM - 12:00 PM";
+        String slotId = request.getSlotId() != null ? request.getSlotId() : "SLOT-0912";
+
+        // Group cart items by category so worker matching works smoothly for multi-category items
+        Map<String, List<CartItem>> itemsByCategory = cart.getItems().stream()
+                .collect(Collectors.groupingBy(item -> item.getCategoryId() != null ? item.getCategoryId() : "DEFAULT"));
+
+        List<Booking> createdBookings = new ArrayList<>();
+        List<BookingItemResponseDTO> allBookingItemDTOs = new ArrayList<>();
+        BigDecimal totalCheckoutAmount = BigDecimal.ZERO;
+
+        boolean couponAppliedToAny = false;
+
+        for (Map.Entry<String, List<CartItem>> entry : itemsByCategory.entrySet()) {
+            List<CartItem> groupItems = entry.getValue();
+            CartItem primaryItem = groupItems.get(0);
+
+            BigDecimal groupTotal = groupItems.stream()
+                    .map(item -> item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal discountAmount = BigDecimal.ZERO;
+            BigDecimal payableAmount = groupTotal;
+
+            // Apply coupon to first booking group if coupon provided and not yet applied
+            String couponToApply = null;
+            if (!couponAppliedToAny && request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
+                CouponValidationResponseDTO couponResult = couponService.validateCoupon(
+                        request.getCouponCode(), groupTotal, primaryItem.getServiceId(), effectiveCustomerId
+                );
+                if (Boolean.TRUE.equals(couponResult.getValid())) {
+                    discountAmount = couponResult.getDiscountAmount();
+                    payableAmount = couponResult.getFinalAmount();
+                    couponService.recordCouponUsage(request.getCouponCode());
+                    couponToApply = request.getCouponCode();
+                    couponAppliedToAny = true;
+                }
+            }
+
+            String compositeServiceName = groupItems.size() == 1
+                    ? primaryItem.getServiceName()
+                    : primaryItem.getServiceName() + " (+" + (groupItems.size() - 1) + " more)";
+
+            Booking booking = Booking.builder()
+                    .customerId(effectiveCustomerId)
+                    .serviceId(primaryItem.getServiceId())
+                    .serviceName(compositeServiceName)
+                    .categoryId(primaryItem.getCategoryId())
+                    .bookingDate(scheduledDate)
+                    .status(BookingStatus.PENDING)
+                    .totalAmount(groupTotal)
+                    .discountAmount(discountAmount)
+                    .payableAmount(payableAmount)
+                    .addressId(request.getAddressId())
+                    .addressSummary(addressSummary)
+                    .customerLat(customerLat)
+                    .customerLng(customerLng)
+                    .slotId(slotId)
+                    .scheduledTime(scheduledTime)
+                    .couponCode(couponToApply)
+                    .notes(request.getNotes())
+                    .startPinHash(null)
+                    .startPinEncrypted(null)
+                    .startPinVerified(false)
+                    .pinAttempts(0)
+                    .pinExpiresAt(null)
+                    .build();
+
+            for (CartItem ci : groupItems) {
+                BookingItem bi = BookingItem.builder()
+                        .serviceId(ci.getServiceId())
+                        .serviceName(ci.getServiceName())
+                        .categoryId(ci.getCategoryId())
+                        .categoryName(ci.getCategoryName())
+                        .quantity(ci.getQuantity())
+                        .price(ci.getPrice())
+                        .totalPrice(ci.getTotalPrice())
+                        .build();
+                booking.addBookingItem(bi);
+
+                allBookingItemDTOs.add(BookingItemResponseDTO.builder()
+                        .serviceId(ci.getServiceId())
+                        .serviceName(ci.getServiceName())
+                        .categoryId(ci.getCategoryId())
+                        .categoryName(ci.getCategoryName())
+                        .quantity(ci.getQuantity())
+                        .price(ci.getPrice())
+                        .totalPrice(ci.getTotalPrice())
+                        .build());
+            }
+
+            Booking savedBooking = bookingRepository.save(booking);
+            createdBookings.add(savedBooking);
+            totalCheckoutAmount = totalCheckoutAmount.add(payableAmount);
+
+            // Trigger worker matching engine for each created booking
+            try {
+                workerMatchingService.matchAndCreateOffers(savedBooking);
+            } catch (Exception e) {
+                // Do not fail checkout if matching notification fails
+            }
+        }
+
+        // Mark cart as CONVERTED and clear items
+        cart.setStatus(CartStatus.CONVERTED);
+        cart.clearItems();
+        cart.recalculateTotals();
+        cartRepository.save(cart);
+
+        List<BookingResponseDTO> bookingDTOs = createdBookings.stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+
+        List<Long> bookingIds = createdBookings.stream()
+                .map(Booking::getId)
+                .collect(Collectors.toList());
+
+        Long primaryBookingId = createdBookings.isEmpty() ? null : createdBookings.get(0).getId();
+
+        return CartCheckoutResponseDTO.builder()
+                .bookingId(primaryBookingId)
+                .bookingIds(bookingIds)
+                .bookings(bookingDTOs)
+                .totalAmount(totalCheckoutAmount)
+                .status("CONFIRMED")
+                .message("Booking created successfully from cart items. Worker matching initiated.")
+                .items(allBookingItemDTOs)
+                .build();
     }
 
     @Override
@@ -870,6 +1097,22 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
+        List<BookingItemResponseDTO> itemDTOs = null;
+        if (booking.getItems() != null && !booking.getItems().isEmpty()) {
+            itemDTOs = booking.getItems().stream()
+                    .map(i -> BookingItemResponseDTO.builder()
+                            .id(i.getId())
+                            .serviceId(i.getServiceId())
+                            .serviceName(i.getServiceName())
+                            .categoryId(i.getCategoryId())
+                            .categoryName(i.getCategoryName())
+                            .quantity(i.getQuantity())
+                            .price(i.getPrice())
+                            .totalPrice(i.getTotalPrice())
+                            .build())
+                    .collect(Collectors.toList());
+        }
+
         return BookingResponseDTO.builder()
                 .id(booking.getId())
                 .customerId(booking.getCustomerId())
@@ -877,6 +1120,7 @@ public class BookingServiceImpl implements BookingService {
                 .serviceId(booking.getServiceId())
                 .serviceName(booking.getServiceName())
                 .categoryId(booking.getCategoryId())
+                .items(itemDTOs)
                 .bookingDate(booking.getBookingDate())
                 .status(booking.getStatus())
                 .totalAmount(booking.getTotalAmount())

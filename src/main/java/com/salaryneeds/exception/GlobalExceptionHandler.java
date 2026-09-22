@@ -76,6 +76,16 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Service Not Found", ex.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(CartNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCartNotFound(CartNotFoundException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Cart Not Found", ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(CartItemNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCartItemNotFound(CartItemNotFoundException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Cart Item Not Found", ex.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(CouponNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleCouponNotFound(CouponNotFoundException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Coupon Not Found", ex.getMessage(), request.getRequestURI());

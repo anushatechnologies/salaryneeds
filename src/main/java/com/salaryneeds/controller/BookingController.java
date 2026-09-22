@@ -40,6 +40,19 @@ public class BookingController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/checkout")
+    public ResponseEntity<CartCheckoutResponseDTO> checkoutCart(
+            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader,
+            @RequestParam(value = "customerId", required = false) String customerIdParam,
+            @Valid @RequestBody CartCheckoutRequestDTO request
+    ) {
+        String effectiveCustomerId = (customerIdHeader != null && !customerIdHeader.isBlank())
+                ? customerIdHeader.trim()
+                : customerIdParam;
+        CartCheckoutResponseDTO response = bookingService.checkoutCart(request, effectiveCustomerId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @GetMapping
     public ResponseEntity<PageResponseDTO<BookingResponseDTO>> getBookings(
             @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader,

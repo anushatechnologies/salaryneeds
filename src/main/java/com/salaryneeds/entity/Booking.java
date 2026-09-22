@@ -252,6 +252,18 @@ public class Booking {
     @Builder.Default
     private Boolean isFavourite = false;
 
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<BookingItem> items = new java.util.ArrayList<>();
+
+    public void addBookingItem(BookingItem item) {
+        if (items == null) {
+            items = new java.util.ArrayList<>();
+        }
+        items.add(item);
+        item.setBooking(this);
+    }
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

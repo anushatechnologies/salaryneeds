@@ -13,6 +13,8 @@ public interface BookingService {
 
     BookingResponseDTO createBooking(BookingCreateRequestDTO request, String customerIdHeader);
 
+    CartCheckoutResponseDTO checkoutCart(CartCheckoutRequestDTO request, String customerIdHeader);
+
     PageResponseDTO<BookingResponseDTO> getBookings(String customerId, String statusFilter, Pageable pageable);
 
     BookingResponseDTO getBookingById(Long bookingId, String customerIdHeader);
