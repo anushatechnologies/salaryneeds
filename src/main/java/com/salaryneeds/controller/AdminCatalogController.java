@@ -354,10 +354,71 @@ public class AdminCatalogController {
     // 4. OPTIONAL VARIANT MODULE
     // ==========================================
 
-    @PostMapping(value = {"/subcategories/{subCategoryId}/variants", "/sub-categories/{subCategoryId}/variants"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = {"/variants", "/subcategories/{subCategoryId}/variants", "/sub-categories/{subCategoryId}/variants"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<VariantResponseDTO> createVariantMultipart(
-            @PathVariable Long subCategoryId,
+            @PathVariable(required = false) Long subCategoryId,
             @ModelAttribute VariantRequestDTO request,
+            @RequestParam(value = "variantImage", required = false) MultipartFile variantImage,
+            @RequestParam(value = "variant_image", required = false) MultipartFile variantImageSnake,
+            @RequestParam(value = "uploadImage", required = false) MultipartFile uploadImage,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            jakarta.servlet.http.HttpServletRequest httpRequest
+    ) {
+        Long targetSubId = subCategoryId;
+        if (targetSubId == null && request != null) {
+            targetSubId = request.getSubcategoryId();
+        }
+        if (targetSubId == null && httpRequest != null) {
+            String subParam = httpRequest.getParameter("subCategoryId");
+            if (subParam == null) subParam = httpRequest.getParameter("subcategoryId");
+            if (subParam == null) subParam = httpRequest.getParameter("subcategory_id");
+            if (subParam == null) subParam = httpRequest.getParameter("sub_category_id");
+            if (subParam != null) {
+                targetSubId = extractNumericId(subParam);
+            }
+        }
+        if (targetSubId == null) {
+            targetSubId = 1L;
+        }
+
+        MultipartFile upload = variantImage != null && !variantImage.isEmpty() ? variantImage :
+                (variantImageSnake != null && !variantImageSnake.isEmpty() ? variantImageSnake :
+                (uploadImage != null && !uploadImage.isEmpty() ? uploadImage :
+                (file != null && !file.isEmpty() ? file : image)));
+
+        if (upload != null && !upload.isEmpty()) {
+            String imageUrl = fileStorageService.store(upload, "variants");
+            if (request == null) request = new VariantRequestDTO();
+            request.setImageUrl(imageUrl);
+        }
+        VariantResponseDTO response = catalogManagementService.createVariant(targetSubId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping({"/variants", "/subcategories/{subCategoryId}/variants", "/sub-categories/{subCategoryId}/variants"})
+    public ResponseEntity<VariantResponseDTO> createVariant(
+            @PathVariable(required = false) Long subCategoryId,
+            @Valid @RequestBody VariantRequestDTO request
+    ) {
+        Long targetSubId = subCategoryId;
+        if (targetSubId == null && request != null) {
+            targetSubId = request.getSubcategoryId();
+        }
+        if (targetSubId == null) {
+            targetSubId = 1L;
+        }
+        if (request != null && request.getImageUrl() != null && (request.getImageUrl().startsWith("http://") || request.getImageUrl().startsWith("https://"))) {
+            String s3Url = fileStorageService.storeFromUrl(request.getImageUrl(), "variants");
+            request.setImageUrl(s3Url);
+        }
+        VariantResponseDTO response = catalogManagementService.createVariant(targetSubId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping(value = {"/variants/{variantId}/image", "/variants/{variantId}/upload-image"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<VariantResponseDTO> uploadVariantImage(
+            @PathVariable Long variantId,
             @RequestParam(value = "variantImage", required = false) MultipartFile variantImage,
             @RequestParam(value = "variant_image", required = false) MultipartFile variantImageSnake,
             @RequestParam(value = "uploadImage", required = false) MultipartFile uploadImage,
@@ -369,26 +430,17 @@ public class AdminCatalogController {
                 (uploadImage != null && !uploadImage.isEmpty() ? uploadImage :
                 (file != null && !file.isEmpty() ? file : image)));
 
-        if (upload != null && !upload.isEmpty()) {
-            String imageUrl = fileStorageService.store(upload, "variants");
-            request.setImageUrl(imageUrl);
+        if (upload == null || upload.isEmpty()) {
+            throw new IllegalArgumentException("Variant image file must not be empty");
         }
-        VariantResponseDTO response = catalogManagementService.createVariant(subCategoryId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        String imageUrl = fileStorageService.store(upload, "variants");
+        VariantRequestDTO updateRequest = VariantRequestDTO.builder()
+                .imageUrl(imageUrl)
+                .build();
+        VariantResponseDTO response = catalogManagementService.updateVariant(variantId, updateRequest);
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping({"/subcategories/{subCategoryId}/variants", "/sub-categories/{subCategoryId}/variants"})
-    public ResponseEntity<VariantResponseDTO> createVariant(
-            @PathVariable Long subCategoryId,
-            @Valid @RequestBody VariantRequestDTO request
-    ) {
-        if (request.getImageUrl() != null && (request.getImageUrl().startsWith("http://") || request.getImageUrl().startsWith("https://"))) {
-            String s3Url = fileStorageService.storeFromUrl(request.getImageUrl(), "variants");
-            request.setImageUrl(s3Url);
-        }
-        VariantResponseDTO response = catalogManagementService.createVariant(subCategoryId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
 
     @GetMapping({"/subcategories/{subCategoryId}/variants", "/sub-categories/{subCategoryId}/variants"})
     public ResponseEntity<List<VariantResponseDTO>> getVariantsBySubCategory(
