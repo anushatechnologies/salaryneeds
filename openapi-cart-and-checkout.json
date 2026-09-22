@@ -1,0 +1,421 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SalaryNeeds Cart & Checkout API Specification",
+    "description": "Complete production API specification for SalaryNeeds Cart Operations and Atomic Cart-to-Booking Checkout flow. Guarantees zero bookings created on service browse/add/update/delete. The booking is atomically created with PENDING status, booking line items, cart conversion, and worker matching dispatch only upon checkout confirmation.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.anjibabujob.com",
+      "description": "Production Server"
+    },
+    {
+      "url": "http://localhost:8081",
+      "description": "Local Development Server"
+    }
+  ],
+  "paths": {
+    "/api/cart/items": {
+      "post": {
+        "summary": "Add Service to Cart",
+        "description": "Adds a service item to the authenticated customer's active cart. If the service is already present, increments the quantity. The unit price is authoritatively fetched from the database ServiceItem and any client-provided price is ignored. ZERO bookings are created.",
+        "parameters": [
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID of the authenticated customer"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddToCartRequest"
+              },
+              "example": {
+                "serviceId": 101,
+                "quantity": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Service added to cart successfully",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Service added to cart",
+                  "data": {
+                    "cartItemId": 1001,
+                    "serviceId": 101,
+                    "serviceName": "Electrician",
+                    "categoryId": "cat-electrician-uuid",
+                    "imageUrl": "https://example.com/electrician.jpg",
+                    "quantity": 1,
+                    "price": 499.00,
+                    "totalPrice": 499.00
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid service ID or quantity"
+          },
+          "404": {
+            "description": "Customer or Service not found"
+          }
+        }
+      }
+    },
+    "/api/cart": {
+      "get": {
+        "summary": "Get Active Cart",
+        "description": "Fetches the customer's active cart. Dynamically refreshes line item prices from the database catalog and returns subtotal, total, and item array. ZERO bookings are created.",
+        "parameters": [
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active cart retrieved successfully",
+            "content": {
+              "application/json": {
+                "example": {
+                  "cartId": 501,
+                  "customerId": "301c37af-7ab0-4f15-85d6-c732dee0959a",
+                  "items": [
+                    {
+                      "cartItemId": 1001,
+                      "serviceId": 101,
+                      "serviceName": "Electrician",
+                      "quantity": 1,
+                      "price": 499.00,
+                      "totalPrice": 499.00
+                    },
+                    {
+                      "cartItemId": 1002,
+                      "serviceId": 102,
+                      "serviceName": "Plumber",
+                      "quantity": 1,
+                      "price": 399.00,
+                      "totalPrice": 399.00
+                    }
+                  ],
+                  "subtotal": 898.00,
+                  "total": 898.00,
+                  "status": "ACTIVE"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Clear Active Cart",
+        "description": "Clears all line items from the customer's active cart.",
+        "parameters": [
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cart cleared successfully"
+          }
+        }
+      }
+    },
+    "/api/cart/count": {
+      "get": {
+        "summary": "Get Cart Item Count",
+        "description": "Returns the badge count of total items in the customer's active cart for UI header display.",
+        "parameters": [
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active cart item count",
+            "content": {
+              "application/json": {
+                "example": {
+                  "count": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cart/items/{cartItemId}": {
+      "put": {
+        "summary": "Update Cart Item Quantity",
+        "description": "Modifies quantity for a specific cart line item. Setting quantity to 0 removes the item. Validates ownership to prevent unauthorized access.",
+        "parameters": [
+          {
+            "name": "cartItemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCartItemRequest"
+              },
+              "example": {
+                "quantity": 2
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cart item updated successfully"
+          },
+          "403": {
+            "description": "Cart item does not belong to logged-in customer"
+          },
+          "404": {
+            "description": "Cart item not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove Item from Cart",
+        "description": "Removes a specific line item from the customer's active cart. Validates ownership.",
+        "parameters": [
+          {
+            "name": "cartItemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cart item removed successfully"
+          },
+          "403": {
+            "description": "Cart item does not belong to logged-in customer"
+          }
+        }
+      }
+    },
+    "/api/bookings/checkout": {
+      "post": {
+        "summary": "Confirm Booking Checkout (Atomic Transaction)",
+        "description": "Atomic transaction that: 1. Validates authenticated customer, 2. Verifies cart items and refreshes backend prices, 3. Validates address ownership, 4. Creates Booking with status PENDING, 5. Creates BookingItem records, 6. Marks Cart as CONVERTED, 7. Dispatches Worker Matching Engine to send offers to eligible workers, 8. Prevents duplicate bookings from accidental double-clicks.",
+        "parameters": [
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique request key preventing double-booking upon multiple clicks"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingCheckoutRequest"
+              },
+              "example": {
+                "addressId": "44cdb42b-57d7-4737-854e-59b7f77b6f1a",
+                "scheduledDate": "2026-09-25",
+                "scheduledTime": "10:00 AM - 01:00 PM",
+                "slotId": "SLOT-1013",
+                "notes": "Please call before arriving",
+                "idempotencyKey": "CHK-ORD-9901"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created successfully",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Booking created successfully.",
+                  "cartId": 501,
+                  "totalAmount": 898.00,
+                  "status": "PENDING",
+                  "booking": {
+                    "id": 8881,
+                    "customerId": "301c37af-7ab0-4f15-85d6-c732dee0959a",
+                    "serviceName": "Electrician Service",
+                    "status": "PENDING",
+                    "totalAmount": 499.00,
+                    "payableAmount": 499.00,
+                    "addressSummary": "Flat 304, Green Heights, Hyderabad 500081",
+                    "bookingDate": "2026-09-25",
+                    "scheduledTime": "10:00 AM - 01:00 PM",
+                    "items": [
+                      {
+                        "bookingItemId": 9001,
+                        "bookingId": 8881,
+                        "serviceId": 101,
+                        "serviceName": "Electrician Service",
+                        "quantity": 1,
+                        "unitPrice": 499.00,
+                        "totalPrice": 499.00
+                      }
+                    ]
+                  },
+                  "bookings": [
+                    {
+                      "id": 8881,
+                      "customerId": "301c37af-7ab0-4f15-85d6-c732dee0959a",
+                      "serviceName": "Electrician Service",
+                      "status": "PENDING",
+                      "totalAmount": 499.00,
+                      "payableAmount": 499.00
+                    },
+                    {
+                      "id": 8882,
+                      "customerId": "301c37af-7ab0-4f15-85d6-c732dee0959a",
+                      "serviceName": "Plumber Service",
+                      "status": "PENDING",
+                      "totalAmount": 399.00,
+                      "payableAmount": 399.00
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cart is empty, inactive service, or address mismatch"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddToCartRequest": {
+        "type": "object",
+        "required": ["serviceId"],
+        "properties": {
+          "serviceId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          }
+        }
+      },
+      "UpdateCartItemRequest": {
+        "type": "object",
+        "required": ["quantity"],
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "BookingCheckoutRequest": {
+        "type": "object",
+        "required": ["addressId", "scheduledDate"],
+        "properties": {
+          "addressId": {
+            "type": "string"
+          },
+          "scheduledDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "scheduledTime": {
+            "type": "string"
+          },
+          "slotId": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "couponCode": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

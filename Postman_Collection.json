@@ -8,7 +8,7 @@
 	"variable": [
 		{
 			"key": "baseUrl",
-			"value": "http://localhost:8080",
+			"value": "https://api.anjibabujob.com",
 			"type": "string"
 		},
 		{
@@ -24,6 +24,21 @@
 		{
 			"key": "bookingId",
 			"value": "SNB-99231",
+			"type": "string"
+		},
+		{
+			"key": "customerId",
+			"value": "301c37af-7ab0-4f15-85d6-c732dee0959a",
+			"type": "string"
+		},
+		{
+			"key": "cartItemId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "addressId",
+			"value": "44cdb42b-57d7-4737-854e-59b7f77b6f1a",
 			"type": "string"
 		}
 	],
@@ -650,6 +665,187 @@
 							"host": ["{{baseUrl}}"],
 							"path": ["worker", "devices", "register-token"]
 						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Module K: Customer Cart & Atomic Checkout Flow",
+			"item": [
+				{
+					"name": "1. Add Service to Cart (Electrician - ₹499)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"serviceId\": 1,\n  \"quantity\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/cart/items",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cart", "items"]
+						},
+						"description": "Customer adds a service to cart. ZERO bookings are created. Backend retrieves the authoritative price from the database and ignores any client-sent price."
+					}
+				},
+				{
+					"name": "2. Add Service to Cart (Plumber - ₹399)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"serviceId\": 2,\n  \"quantity\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/cart/items",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cart", "items"]
+						}
+					}
+				},
+				{
+					"name": "3. Get Active Cart Badge Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/cart/count",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cart", "count"]
+						},
+						"description": "Returns the live badge count of items in the customer's active cart."
+					}
+				},
+				{
+					"name": "4. Get Customer Active Cart",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/cart",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cart"]
+						},
+						"description": "Returns full active cart details with line items, quantities, and refreshed backend prices."
+					}
+				},
+				{
+					"name": "5. Update Cart Item Quantity",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"quantity\": 2\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/cart/items/{{cartItemId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cart", "items", "{{cartItemId}}"]
+						}
+					}
+				},
+				{
+					"name": "6. Remove Single Service from Cart",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/cart/items/{{cartItemId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cart", "items", "{{cartItemId}}"]
+						}
+					}
+				},
+				{
+					"name": "7. Clear Active Cart",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/cart",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cart"]
+						}
+					}
+				},
+				{
+					"name": "8. Confirm Booking Checkout (Atomic Transaction)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							},
+							{
+								"key": "Idempotency-Key",
+								"value": "CHK-ORD-9901"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"addressId\": \"{{addressId}}\",\n  \"scheduledDate\": \"2026-09-25\",\n  \"scheduledTime\": \"10:00 AM - 01:00 PM\",\n  \"slotId\": \"SLOT-1013\",\n  \"notes\": \"Please call before arriving\",\n  \"idempotencyKey\": \"CHK-ORD-9901\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/checkout",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "checkout"]
+						},
+						"description": "Executes single atomic @Transactional checkout: validates address ownership, recalculates live backend prices, creates Booking with PENDING status, creates BookingItems, marks cart CONVERTED, and dispatches worker matching engine."
 					}
 				}
 			]

@@ -1,6 +1,5 @@
 package com.salaryneeds;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salaryneeds.config.CorsConfig;
 import com.salaryneeds.controller.AdminCatalogController;
 import com.salaryneeds.dto.catalog.SubCategoryResponseDTO;

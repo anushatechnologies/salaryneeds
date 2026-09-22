@@ -252,6 +252,13 @@ public class Booking {
     @Builder.Default
     private Boolean isFavourite = false;
 
+    @Column(name = "checkout_id", length = 100)
+    private String checkoutId;
+
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<BookingItem> items = new java.util.ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -259,6 +266,16 @@ public class Booking {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public void addItem(BookingItem item) {
+        items.add(item);
+        item.setBooking(this);
+    }
+
+    public void removeItem(BookingItem item) {
+        items.remove(item);
+        item.setBooking(null);
+    }
 
     public String getBookingNumber() {
         if (bookingNumber != null && !bookingNumber.isBlank()) {

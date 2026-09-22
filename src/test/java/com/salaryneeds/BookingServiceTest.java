@@ -62,6 +62,15 @@ class BookingServiceTest {
     @Mock
     private com.salaryneeds.service.NotificationService notificationService;
 
+    @Mock
+    private com.salaryneeds.repository.CartRepository cartRepository;
+
+    @Mock
+    private com.salaryneeds.repository.CartItemRepository cartItemRepository;
+
+    @Mock
+    private com.salaryneeds.repository.BookingItemRepository bookingItemRepository;
+
     @InjectMocks
     private BookingServiceImpl bookingService;
 

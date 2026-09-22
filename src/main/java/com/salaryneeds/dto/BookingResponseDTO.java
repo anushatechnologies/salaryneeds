@@ -58,6 +58,7 @@ public class BookingResponseDTO {
     private String paymentRemarks;
     private LocalDateTime serviceStartedAt;
     private LocalDateTime serviceCompletedAt;
+    private java.util.List<BookingItemResponseDTO> items;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

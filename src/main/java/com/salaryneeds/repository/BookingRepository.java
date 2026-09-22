@@ -18,6 +18,8 @@ import java.util.List;
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
+    List<Booking> findByCheckoutId(String checkoutId);
+
     Page<Booking> findByCustomerId(String customerId, Pageable pageable);
 
     Page<Booking> findByCustomerIdAndStatusIn(String customerId, Collection<BookingStatus> statuses, Pageable pageable);

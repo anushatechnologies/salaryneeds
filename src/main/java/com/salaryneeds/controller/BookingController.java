@@ -39,6 +39,16 @@ public class BookingController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/checkout")
+    public ResponseEntity<BookingCheckoutResponseDTO> checkout(
+            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKeyHeader,
+            @Valid @RequestBody BookingCheckoutRequestDTO request
+    ) {
+        BookingCheckoutResponseDTO response = bookingService.checkout(request, customerIdHeader, idempotencyKeyHeader);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @GetMapping
     public ResponseEntity<PageResponseDTO<BookingResponseDTO>> getBookings(
             @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader,

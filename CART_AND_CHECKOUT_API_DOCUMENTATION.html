@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SalaryNeeds - Cart API & Cart-to-Booking Flow Specification</title>
+    <style>
+        @page { size: A4; margin: 15mm; }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            line-height: 1.5;
+            font-size: 11pt;
+            margin: 30px auto;
+            max-width: 900px;
+            padding: 0 20px;
+        }
+        .header {
+            border-bottom: 3px solid #0284c7;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            color: #0369a1;
+            margin: 0 0 6px 0;
+            font-size: 24pt;
+        }
+        .header .meta {
+            color: #64748b;
+            font-size: 10pt;
+        }
+        h2 {
+            color: #0369a1;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+            margin-top: 28px;
+            margin-bottom: 12px;
+            font-size: 15pt;
+        }
+        h3 {
+            color: #0f172a;
+            margin-top: 18px;
+            margin-bottom: 8px;
+            font-size: 12pt;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 8.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-post { background-color: #dbeafe; color: #1e40af; }
+        .badge-get { background-color: #dcfce7; color: #166534; }
+        .badge-put { background-color: #fef9c3; color: #854d0e; }
+        .badge-delete { background-color: #fee2e2; color: #991b1b; }
+        pre {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 9.5pt;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 16px 0;
+            font-size: 10pt;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-weight: 600;
+        }
+        .alert-box {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 10px 14px;
+            margin: 14px 0;
+            border-radius: 0 4px 4px 0;
+            font-size: 10pt;
+        }
+        .highlight {
+            font-weight: 600;
+            color: #b91c1c;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>SalaryNeeds</h1>
+    <div class="meta">Customer Cart Module & Atomic Cart-to-Booking Flow Specification | Version 1.0<br><strong>Base URL:</strong> <code>https://api.anjibabujob.com</code></div>
+</div>
+
+<div class="alert-box">
+    <strong>CRITICAL UX & ARCHITECTURE RULE:</strong><br>
+    Selecting a service or clicking [Add to Cart] does <span class="highlight">NOT</span> create a booking in the database! Bookings are created exclusively upon customer confirmation during <span class="badge badge-post">POST /api/bookings/checkout</span> inside a single atomic <code>@Transactional</code> boundary.
+</div>
+
+<h2>1. Complete End-to-End Workflow</h2>
+<pre>
+1. Customer Browses Services
+   └─ Clicks [Add to Cart] on Electrician (₹499)
+      └─ Calls POST /api/cart/items (Backend pulls price from DB, ignores client price)
+      └─ ZERO bookings created in DB 🚫
+
+2. Customer Continues Browsing
+   └─ Clicks [Add to Cart] on Plumber (₹399)
+      └─ Header badge updates via GET /api/cart/count: Cart 🛒 (2)
+
+3. Customer Reviews Cart (GET /api/cart)
+   └─ Reviews items:
+      - Electrician: 1 × ₹499 = ₹499
+      - Plumber: 1 × ₹399 = ₹399
+      - Subtotal: ₹898
+   └─ Can change quantity (PUT /api/cart/items/{id}) or remove (DELETE /api/cart/items/{id})
+   └─ ZERO bookings created in DB 🚫
+
+4. Customer Proceeds to Booking
+   └─ Selects saved service address (validated against logged-in customer)
+   └─ Selects date & time slot
+   └─ Reviews final summary (₹898)
+
+5. Customer Clicks [Confirm Booking]
+   └─ Calls POST /api/bookings/checkout
+   └─ Entire checkout runs inside a single atomic @Transactional operation:
+      1. Validates authenticated customer (X-Customer-Id)
+      2. Validates cart items & refreshes live backend prices
+      3. Validates address belongs to customer
+      4. Creates Booking with status PENDING
+      5. Creates BookingItem records for each service line item
+      6. Marks Cart as CONVERTED (or clears active items)
+      7. Dispatches Worker Matching Engine to send offers to eligible workers
+      8. Prevents duplicate bookings from accidental double-clicks
+
+6. Booking Lifecycle Continues Smoothly
+   └─ PENDING ➔ WORKER_MATCHING ➔ OFFERED ➔ ACCEPTED ➔ ON_THE_WAY ➔ ARRIVED ➔ Start PIN ➔ IN_PROGRESS ➔ COMPLETED
+</pre>
+
+<h2>2. REST API Endpoints Summary</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Auth Header</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><span class="badge badge-post">POST</span></td>
+            <td><code>/api/cart/items</code></td>
+            <td>Add service to active cart (ZERO bookings created)</td>
+            <td><code>X-Customer-Id</code></td>
+        </tr>
+        <tr>
+            <td><span class="badge badge-get">GET</span></td>
+            <td><code>/api/cart</code></td>
+            <td>Retrieve active cart, items, subtotal, and total</td>
+            <td><code>X-Customer-Id</code></td>
+        </tr>
+        <tr>
+            <td><span class="badge badge-get">GET</span></td>
+            <td><code>/api/cart/count</code></td>
+            <td>Retrieve live item badge count</td>
+            <td><code>X-Customer-Id</code></td>
+        </tr>
+        <tr>
+            <td><span class="badge badge-put">PUT</span></td>
+            <td><code>/api/cart/items/{cartItemId}</code></td>
+            <td>Update item quantity (0 deletes item)</td>
+            <td><code>X-Customer-Id</code></td>
+        </tr>
+        <tr>
+            <td><span class="badge badge-delete">DELETE</span></td>
+            <td><code>/api/cart/items/{cartItemId}</code></td>
+            <td>Remove single item from active cart</td>
+            <td><code>X-Customer-Id</code></td>
+        </tr>
+        <tr>
+            <td><span class="badge badge-delete">DELETE</span></td>
+            <td><code>/api/cart</code></td>
+            <td>Clear entire active cart</td>
+            <td><code>X-Customer-Id</code></td>
+        </tr>
+        <tr>
+            <td><span class="badge badge-post">POST</span></td>
+            <td><code>/api/bookings/checkout</code></td>
+            <td>Atomic transactional checkout: creates Booking, BookingItems & dispatches Worker Matching</td>
+            <td><code>X-Customer-Id</code>, <code>Idempotency-Key</code></td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>3. Endpoint Details & Examples</h2>
+
+<h3>3.1. Add Service to Cart</h3>
+<p><span class="badge badge-post">POST</span> <code>/api/cart/items</code></p>
+<p><strong>Header:</strong> <code>X-Customer-Id: 301c37af-7ab0-4f15-85d6-c732dee0959a</code></p>
+<p><strong>Request Body:</strong></p>
+<pre>
+{
+  "serviceId": 101,
+  "quantity": 1
+}
+</pre>
+<p><strong>Response (201 Created):</strong></p>
+<pre>
+{
+  "success": true,
+  "message": "Service added to cart",
+  "data": {
+    "cartItemId": 1001,
+    "serviceId": 101,
+    "serviceName": "Electrician Service",
+    "categoryId": "44cdb42b-57d7-4737-854e-59b7f77b6f1a",
+    "imageUrl": "https://supabase.../electrician.jpg",
+    "quantity": 1,
+    "price": 499.00,
+    "totalPrice": 499.00
+  }
+}
+</pre>
+
+<h3>3.2. Get Active Cart</h3>
+<p><span class="badge badge-get">GET</span> <code>/api/cart</code></p>
+<p><strong>Header:</strong> <code>X-Customer-Id: 301c37af-7ab0-4f15-85d6-c732dee0959a</code></p>
+<p><strong>Response (200 OK):</strong></p>
+<pre>
+{
+  "cartId": 501,
+  "customerId": "301c37af-7ab0-4f15-85d6-c732dee0959a",
+  "items": [
+    {
+      "cartItemId": 1001,
+      "serviceId": 101,
+      "serviceName": "Electrician Service",
+      "quantity": 1,
+      "price": 499.00,
+      "totalPrice": 499.00
+    },
+    {
+      "cartItemId": 1002,
+      "serviceId": 102,
+      "serviceName": "Plumber Service",
+      "quantity": 1,
+      "price": 399.00,
+      "totalPrice": 399.00
+    }
+  ],
+  "subtotal": 898.00,
+  "total": 898.00,
+  "status": "ACTIVE"
+}
+</pre>
+
+<h3>3.3. Confirm Booking Checkout (Atomic @Transactional)</h3>
+<p><span class="badge badge-post">POST</span> <code>/api/bookings/checkout</code></p>
+<p><strong>Headers:</strong><br>
+<code>X-Customer-Id: 301c37af-7ab0-4f15-85d6-c732dee0959a</code><br>
+<code>Idempotency-Key: CHK-ORD-9901</code></p>
+<p><strong>Request Body:</strong></p>
+<pre>
+{
+  "addressId": "44cdb42b-57d7-4737-854e-59b7f77b6f1a",
+  "scheduledDate": "2026-09-25",
+  "scheduledTime": "10:00 AM - 01:00 PM",
+  "slotId": "SLOT-1013",
+  "notes": "Please call before arriving",
+  "idempotencyKey": "CHK-ORD-9901"
+}
+</pre>
+<p><strong>Response (201 Created):</strong></p>
+<pre>
+{
+  "success": true,
+  "message": "Booking created successfully.",
+  "cartId": 501,
+  "totalAmount": 898.00,
+  "status": "PENDING",
+  "booking": {
+    "id": 8881,
+    "customerId": "301c37af-7ab0-4f15-85d6-c732dee0959a",
+    "serviceName": "Electrician Service",
+    "status": "PENDING",
+    "totalAmount": 499.00,
+    "payableAmount": 499.00,
+    "addressSummary": "123 Green Valley, Sector 4, Hyderabad 500081",
+    "bookingDate": "2026-09-25",
+    "scheduledTime": "10:00 AM - 01:00 PM",
+    "items": [
+      {
+        "bookingItemId": 9001,
+        "bookingId": 8881,
+        "serviceId": 101,
+        "serviceName": "Electrician Service",
+        "quantity": 1,
+        "unitPrice": 499.00,
+        "totalPrice": 499.00
+      }
+    ]
+  },
+  "bookings": [
+    {
+      "id": 8881,
+      "serviceName": "Electrician Service",
+      "totalAmount": 499.00,
+      "status": "PENDING"
+    },
+    {
+      "id": 8882,
+      "serviceName": "Plumber Service",
+      "totalAmount": 399.00,
+      "status": "PENDING"
+    }
+  ]
+}
+</pre>
+
+<h2>4. Security & Idempotency Rules</h2>
+<ul>
+    <li><strong>Price Security:</strong> The backend never trusts prices sent from the client. All prices are verified and loaded from the <code>SERVICES</code> table.</li>
+    <li><strong>Customer Ownership Isolation:</strong> Cart and items are validated to ensure only the owner can query, update, or remove them. Unauthorized access returns HTTP 403 Forbidden.</li>
+    <li><strong>Address Validation:</strong> The checkout process confirms that the provided address belongs directly to the authenticated customer.</li>
+    <li><strong>Double-Click Protection:</strong> Accidental repeated submissions using the same <code>Idempotency-Key</code> return the already processed booking immediately without creating duplicate bookings or re-dispatching worker matching offers.</li>
+</ul>
+
+</body>
+</html>

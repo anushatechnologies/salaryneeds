@@ -3,12 +3,19 @@ package com.salaryneeds.service;
 import com.salaryneeds.dto.*;
 import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Booking;
+import com.salaryneeds.entity.BookingItem;
+import com.salaryneeds.entity.Cart;
+import com.salaryneeds.entity.CartItem;
 import com.salaryneeds.entity.ServiceItem;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.entity.enums.BookingStatusTab;
+import com.salaryneeds.entity.enums.CartStatus;
 import com.salaryneeds.exception.*;
 import com.salaryneeds.repository.AddressRepository;
+import com.salaryneeds.repository.BookingItemRepository;
 import com.salaryneeds.repository.BookingRepository;
+import com.salaryneeds.repository.CartItemRepository;
+import com.salaryneeds.repository.CartRepository;
 import com.salaryneeds.repository.CustomerRepository;
 import com.salaryneeds.repository.ServiceItemRepository;
 import com.salaryneeds.repository.WorkerProfileRepository;
@@ -46,6 +53,9 @@ public class BookingServiceImpl implements BookingService {
     private final WorkerProfileRepository workerProfileRepository;
     private final com.salaryneeds.repository.WorkerLocationRepository workerLocationRepository;
     private final NotificationService notificationService;
+    private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
+    private final BookingItemRepository bookingItemRepository;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -213,6 +223,208 @@ public class BookingServiceImpl implements BookingService {
         }
 
         return mapToResponseDTO(savedBooking);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public BookingCheckoutResponseDTO checkout(BookingCheckoutRequestDTO request, String customerIdHeader, String idempotencyKeyHeader) {
+        String effectiveCustomerId = (customerIdHeader != null && !customerIdHeader.isBlank())
+                ? customerIdHeader.trim()
+                : null;
+
+        if (effectiveCustomerId == null || effectiveCustomerId.isBlank()) {
+            throw new IllegalArgumentException("Customer ID is required in X-Customer-Id header");
+        }
+
+        UUID customerUuid;
+        try {
+            customerUuid = UUID.fromString(effectiveCustomerId);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid Customer ID format: " + effectiveCustomerId);
+        }
+
+        if (!customerRepository.existsById(customerUuid)) {
+            throw new CustomerNotFoundException("Customer not found with id: " + effectiveCustomerId);
+        }
+
+        // 1. Idempotency check: prevent duplicate bookings from accidental double-clicks
+        String effectiveIdempotencyKey = (idempotencyKeyHeader != null && !idempotencyKeyHeader.isBlank())
+                ? idempotencyKeyHeader.trim()
+                : (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank() ? request.getIdempotencyKey().trim() : null);
+
+        if (effectiveIdempotencyKey != null) {
+            List<Booking> existing = bookingRepository.findByCheckoutId(effectiveIdempotencyKey);
+            if (!existing.isEmpty()) {
+                Booking primary = existing.get(0);
+                List<BookingResponseDTO> dtos = existing.stream().map(this::mapToResponseDTO).collect(Collectors.toList());
+                BigDecimal totalAmount = existing.stream()
+                        .map(b -> b.getPayableAmount() != null ? b.getPayableAmount() : (b.getTotalAmount() != null ? b.getTotalAmount() : BigDecimal.ZERO))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                return BookingCheckoutResponseDTO.builder()
+                        .success(true)
+                        .message("Booking already processed (idempotent request)")
+                        .totalAmount(totalAmount)
+                        .status(primary.getStatus())
+                        .booking(mapToResponseDTO(primary))
+                        .bookings(dtos)
+                        .build();
+            }
+        }
+
+        // 2. Load active cart
+        Cart cart = cartRepository.findFirstByCustomerIdAndStatusOrderByCreatedAtDesc(customerUuid, CartStatus.ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("Cart is empty or not found"));
+
+        List<CartItem> cartItems = cartItemRepository.findByCart_Id(cart.getId());
+        if (cartItems == null || cartItems.isEmpty()) {
+            throw new IllegalArgumentException("Cart is empty. Please add services before checkout.");
+        }
+
+        // 3. Verify every service is still active & recalculate authoritative prices
+        for (CartItem item : cartItems) {
+            ServiceItem service = serviceItemRepository.findById(item.getServiceId())
+                    .orElseThrow(() -> new IllegalArgumentException("Unable to create booking because the selected service is no longer available."));
+            if (service.getIsActive() != null && !service.getIsActive()) {
+                throw new IllegalArgumentException("Unable to create booking because the selected service '" + item.getServiceName() + "' is no longer available.");
+            }
+            BigDecimal unitPrice = (service.getFinalAmount() != null && service.getFinalAmount().compareTo(BigDecimal.ZERO) > 0)
+                    ? service.getFinalAmount()
+                    : (service.getBasePrice() != null ? service.getBasePrice() : item.getPrice());
+            item.setPrice(unitPrice);
+            item.recalculateTotalPrice();
+        }
+
+        // 4. Validate selected address belongs to the customer
+        if (request.getAddressId() == null || request.getAddressId().isBlank()) {
+            throw new IllegalArgumentException("Address ID is required");
+        }
+
+        Address address;
+        try {
+            UUID addressUuid = UUID.fromString(request.getAddressId().trim());
+            address = addressRepository.findByIdAndCustomerId(addressUuid, customerUuid)
+                    .orElseThrow(() -> new IllegalArgumentException("Selected address does not belong to the customer"));
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("Selected address")) throw e;
+            throw new IllegalArgumentException("Invalid address ID format: " + request.getAddressId());
+        }
+
+        String addressSummary = address.toFormattedAddress();
+        Double customerLat = address.getLat();
+        Double customerLng = address.getLng();
+
+        // 5. Validate scheduled date and time
+        LocalDate scheduledDate = request.getScheduledDate();
+        if (scheduledDate == null) {
+            throw new IllegalArgumentException("Scheduled date is required");
+        }
+        if (scheduledDate.isBefore(LocalDate.now(BUSINESS_ZONE))) {
+            throw new IllegalArgumentException("Scheduled date cannot be in the past");
+        }
+
+        String scheduledTime = (request.getScheduledTime() != null && !request.getScheduledTime().isBlank())
+                ? request.getScheduledTime()
+                : "09:00 AM - 12:00 PM";
+        String slotId = (request.getSlotId() != null && !request.getSlotId().isBlank())
+                ? request.getSlotId()
+                : "SLOT-0912";
+
+        // 6. Group items by category to support multi-service worker specialization
+        Map<String, List<CartItem>> itemsByCategory = cartItems.stream()
+                .collect(Collectors.groupingBy(i -> i.getCategoryId() != null ? i.getCategoryId() : "DEFAULT"));
+
+        List<Booking> createdBookings = new ArrayList<>();
+        BigDecimal totalCheckoutAmount = BigDecimal.ZERO;
+
+        for (Map.Entry<String, List<CartItem>> entry : itemsByCategory.entrySet()) {
+            String categoryId = "DEFAULT".equals(entry.getKey()) ? null : entry.getKey();
+            List<CartItem> groupItems = entry.getValue();
+
+            BigDecimal groupTotal = groupItems.stream()
+                    .map(CartItem::getTotalPrice)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            totalCheckoutAmount = totalCheckoutAmount.add(groupTotal);
+
+            CartItem primaryItem = groupItems.get(0);
+            String displayServiceName = (groupItems.size() == 1)
+                    ? primaryItem.getServiceName()
+                    : primaryItem.getServiceName() + " + " + (groupItems.size() - 1) + " more";
+
+            Booking booking = Booking.builder()
+                    .customerId(effectiveCustomerId)
+                    .serviceId(primaryItem.getServiceId())
+                    .serviceName(displayServiceName)
+                    .categoryId(categoryId)
+                    .bookingDate(scheduledDate)
+                    .status(BookingStatus.PENDING)
+                    .totalAmount(groupTotal)
+                    .discountAmount(BigDecimal.ZERO)
+                    .payableAmount(groupTotal)
+                    .addressId(request.getAddressId())
+                    .addressSummary(addressSummary)
+                    .customerLat(customerLat)
+                    .customerLng(customerLng)
+                    .slotId(slotId)
+                    .scheduledTime(scheduledTime)
+                    .couponCode(request.getCouponCode())
+                    .notes(request.getNotes())
+                    .checkoutId(effectiveIdempotencyKey)
+                    .startPinHash(null)
+                    .startPinEncrypted(null)
+                    .startPinVerified(false)
+                    .pinAttempts(0)
+                    .build();
+
+            Booking savedBooking = bookingRepository.save(booking);
+
+            // Persist BookingItem records for each service line item
+            for (CartItem ci : groupItems) {
+                BookingItem bi = BookingItem.builder()
+                        .booking(savedBooking)
+                        .serviceId(ci.getServiceId())
+                        .serviceName(ci.getServiceName())
+                        .categoryId(ci.getCategoryId())
+                        .quantity(ci.getQuantity())
+                        .unitPrice(ci.getPrice())
+                        .totalPrice(ci.getTotalPrice())
+                        .build();
+                BookingItem savedBi = bookingItemRepository.save(bi);
+                savedBooking.addItem(savedBi);
+            }
+
+            // Trigger worker matching engine for each booking
+            try {
+                workerMatchingService.matchAndCreateOffers(savedBooking);
+            } catch (Exception ignored) {
+            }
+
+            createdBookings.add(savedBooking);
+        }
+
+        // 7. Mark active cart as CONVERTED
+        cart.setStatus(CartStatus.CONVERTED);
+        cartRepository.save(cart);
+
+        // Clear active items from cart
+        cartItemRepository.deleteByCart_Id(cart.getId());
+
+        Booking primaryBooking = createdBookings.get(0);
+        List<BookingResponseDTO> bookingDTOs = createdBookings.stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+
+        return BookingCheckoutResponseDTO.builder()
+                .success(true)
+                .message("Booking created successfully.")
+                .cartId(cart.getId())
+                .totalAmount(totalCheckoutAmount)
+                .status(BookingStatus.PENDING)
+                .booking(mapToResponseDTO(primaryBooking))
+                .bookings(bookingDTOs)
+                .build();
     }
 
     @Override
@@ -880,6 +1092,16 @@ public class BookingServiceImpl implements BookingService {
                 .paymentRemarks(booking.getPaymentRemarks())
                 .serviceStartedAt(booking.getServiceStartedAt())
                 .serviceCompletedAt(booking.getServiceCompletedAt())
+                .items(booking.getItems() != null ? booking.getItems().stream().map(bi -> BookingItemResponseDTO.builder()
+                        .bookingItemId(bi.getId())
+                        .bookingId(booking.getId())
+                        .serviceId(bi.getServiceId())
+                        .serviceName(bi.getServiceName())
+                        .categoryId(bi.getCategoryId())
+                        .quantity(bi.getQuantity())
+                        .unitPrice(bi.getUnitPrice())
+                        .totalPrice(bi.getTotalPrice())
+                        .build()).collect(Collectors.toList()) : Collections.emptyList())
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
                 .build();
