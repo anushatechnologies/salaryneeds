@@ -74,41 +74,15 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "Writing Supabase PostgreSQL credentials to environment file..."
+            echo "Configuring Supabase PostgreSQL environment on EC2..."
             SUPABASE_SECRET="${{ secrets.SUPABASE_DB_PASSWORD }}"
             DB_PASS="${SUPABASE_SECRET:-SalaryNeeds@123}"
-            sudo tee /opt/salaryneeds/salaryneeds.env > /dev/null <<ENVEOF
-            DB_URL=jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require&prepareThreshold=0
-            DB_USER=postgres.jbgctbgqymrdurkumwes
-            DB_PASSWORD=${DB_PASS}
-            DB_DRIVER=org.postgresql.Driver
-            SPRING_JPA_HIBERNATE_DDL_AUTO=update
-            SERVER_PORT=8080
-            ENVEOF
+            sudo mkdir -p /opt/salaryneeds
+            printf "DB_URL=jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require&prepareThreshold=0\nDB_USER=postgres.jbgctbgqymrdurkumwes\nDB_PASSWORD=%s\nDB_DRIVER=org.postgresql.Driver\nSPRING_JPA_HIBERNATE_DDL_AUTO=update\nSERVER_PORT=8080\n" "$DB_PASS" | sudo tee /opt/salaryneeds/salaryneeds.env > /dev/null
             sudo chown ec2-user:ec2-user /opt/salaryneeds/salaryneeds.env
             sudo chmod 600 /opt/salaryneeds/salaryneeds.env
 
-            echo "Updating systemd service to use environment file..."
-            sudo tee /etc/systemd/system/salaryneeds.service > /dev/null <<'SVCEOF'
-            [Unit]
-            Description=SalaryNeeds Spring Boot Application
-            After=network.target
-
-            [Service]
-            Type=simple
-            User=ec2-user
-            WorkingDirectory=/opt/salaryneeds
-            EnvironmentFile=/opt/salaryneeds/salaryneeds.env
-            ExecStart=/usr/bin/java -jar /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar
-            Restart=on-failure
-            RestartSec=10
-            StandardOutput=journal
-            StandardError=journal
-
-            [Install]
-            WantedBy=multi-user.target
-            SVCEOF
-
+            printf "[Unit]\nDescription=SalaryNeeds Spring Boot Application\nAfter=network.target\n\n[Service]\nType=simple\nUser=ec2-user\nWorkingDirectory=/opt/salaryneeds\nEnvironmentFile=/opt/salaryneeds/salaryneeds.env\nExecStart=/usr/bin/java -jar /opt/salaryneeds/salaryneeds-0.0.1-SNAPSHOT.jar\nRestart=on-failure\nRestartSec=10\nStandardOutput=journal\nStandardError=journal\n\n[Install]\nWantedBy=multi-user.target\n" | sudo tee /etc/systemd/system/salaryneeds.service > /dev/null
             sudo systemctl daemon-reload
 
       # 7. Start application and verify health
