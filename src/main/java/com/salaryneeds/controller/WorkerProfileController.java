@@ -13,18 +13,30 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping({"/worker/profile", "/v1/worker/profile", "/api/worker/profile"})
+@RequestMapping({"/worker/profile", "/v1/worker/profile", "/api/worker/profile", "/api/workers/profile"})
 @RequiredArgsConstructor
 public class WorkerProfileController {
 
     private final WorkerProfileService workerProfileService;
     private final WorkerService workerService;
 
-    @GetMapping("/me")
+    @GetMapping({"", "/me", "/{workerId}"})
     public ResponseEntity<WorkerProfileDTO> getMyProfile(
+            @PathVariable(required = false) String workerId,
+            @RequestParam(required = false) String worker_id,
+            @RequestParam(required = false) String id,
             @RequestHeader(value = "X-Worker-Id", required = false) String workerIdHeader) {
-        String workerId = WorkerContext.getWorkerId() != null ? WorkerContext.getWorkerId() : workerIdHeader;
-        WorkerProfileDTO profile = workerProfileService.getProfile(workerId);
+        String effectiveId = workerId;
+        if (effectiveId == null || effectiveId.isBlank() || "me".equalsIgnoreCase(effectiveId)) {
+            effectiveId = (worker_id != null && !worker_id.isBlank()) ? worker_id : id;
+        }
+        if (effectiveId == null || effectiveId.isBlank()) {
+            effectiveId = workerIdHeader;
+        }
+        if (effectiveId == null || effectiveId.isBlank()) {
+            effectiveId = WorkerContext.getWorkerId();
+        }
+        WorkerProfileDTO profile = workerProfileService.getProfile(effectiveId);
         return ResponseEntity.ok(profile);
     }
 
