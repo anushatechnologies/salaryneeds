@@ -164,8 +164,12 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
+        if (addressSummary == null && request.getAddress() != null && !request.getAddress().isBlank()) {
+            addressSummary = request.getAddress().trim();
+        }
+
         // Discount & Coupon Calculation
-        BigDecimal totalAmount = request.getTotalAmount();
+        BigDecimal totalAmount = request.getTotalAmount() != null ? request.getTotalAmount() : BigDecimal.valueOf(499.00);
         BigDecimal discountAmount = BigDecimal.ZERO;
         BigDecimal payableAmount = totalAmount;
 

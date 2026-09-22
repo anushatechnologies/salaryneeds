@@ -35,22 +35,25 @@ public class BookingCreateRequestDTO {
 
     @NotNull(message = "Booking date is required")
     @JsonFormat(pattern = "yyyy-MM-dd")
-    @JsonAlias({"bookingDate", "booking_date"})
+    @JsonAlias({"bookingDate", "booking_date", "scheduledDate", "scheduled_date", "date"})
     private LocalDate bookingDate;
 
     @JsonAlias({"slotId", "slot_id"})
     private String slotId;
 
-    @JsonAlias({"scheduledTime", "scheduled_time"})
+    @JsonAlias({"scheduledTime", "scheduled_time", "timeSlot", "time_slot", "time"})
     private String scheduledTime;
 
     @NotNull(message = "Total amount is required")
     @DecimalMin(value = "0.01", message = "Total amount must be greater than zero")
-    @JsonAlias({"totalAmount", "total_amount"})
+    @JsonAlias({"totalAmount", "total_amount", "amount", "price"})
     private BigDecimal totalAmount;
 
     @JsonAlias({"addressId", "address_id"})
     private String addressId;
+
+    @JsonAlias({"address", "full_address", "formatted_address"})
+    private String address;
 
     @JsonAlias({"customerLat", "customer_lat", "lat", "latitude"})
     private Double customerLat;
