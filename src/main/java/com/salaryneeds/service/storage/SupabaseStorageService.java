@@ -83,4 +83,13 @@ public interface SupabaseStorageService {
      * @return The public URL in the S3 bucket
      */
     String uploadFromUrl(String folder, String remoteUrl);
+
+    /**
+     * Uploads structured JSON metadata for catalog entities to S3 Storage.
+     *
+     * @param storagePath Explicit key/path in S3 (e.g. "catalog/catalog-tree.json", "categories/{id}/category.json")
+     * @param jsonBytes   UTF-8 encoded JSON bytes
+     * @return The public URL of the uploaded JSON object in S3
+     */
+    String uploadCatalogJson(String storagePath, byte[] jsonBytes);
 }

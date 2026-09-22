@@ -79,4 +79,5 @@ public interface CatalogManagementService {
     List<VariantResponseDTO> getActiveVariantsBySubCategory(Long subCategoryId);
 
     void clearAllCatalogData();
+    java.util.Map<String, Object> syncAllCatalogToS3();
 }

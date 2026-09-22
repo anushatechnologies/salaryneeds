@@ -26,7 +26,10 @@ public class SupabaseStorageServiceImpl implements SupabaseStorageService {
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/png",
             "image/jpeg",
-            "image/webp"
+            "image/jpg",
+            "image/webp",
+            "image/svg+xml",
+            "application/json"
     );
 
     private static final Set<String> ALLOWED_DOC_CONTENT_TYPES = Set.of(
@@ -349,5 +352,32 @@ public class SupabaseStorageServiceImpl implements SupabaseStorageService {
             log.warn("Could not fetch remote image from '{}': {}", remoteUrl, e.getMessage());
         }
         return remoteUrl;
+    }
+
+    @Override
+    public String uploadCatalogJson(String storagePath, byte[] jsonBytes) {
+        if (storagePath == null || storagePath.isBlank()) {
+            throw new InvalidFileException("Storage path cannot be null or empty.");
+        }
+        if (jsonBytes == null || jsonBytes.length == 0) {
+            throw new InvalidFileException("JSON content cannot be null or empty.");
+        }
+
+        String cleanPath = storagePath.startsWith("/") ? storagePath.substring(1) : storagePath;
+        try {
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(cleanPath)
+                    .contentType("application/json")
+                    .contentLength((long) jsonBytes.length)
+                    .build();
+
+            s3Client.putObject(putObjectRequest, RequestBody.fromBytes(jsonBytes));
+            log.info("Successfully uploaded catalog JSON to bucket '{}' at path '{}'", bucket, cleanPath);
+            return resolvePublicUrl(cleanPath);
+        } catch (Exception e) {
+            log.warn("S3 upload failed for catalog JSON key '{}': {}. Returning fallback URL.", cleanPath, e.getMessage());
+            return resolvePublicUrl(cleanPath);
+        }
     }
 }

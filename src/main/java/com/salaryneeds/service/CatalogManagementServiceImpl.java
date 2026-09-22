@@ -32,6 +32,76 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     private final ServiceItemRepository serviceItemRepository;
     private final VariantRepository variantRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.salaryneeds.service.storage.SupabaseStorageService supabaseStorageService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private FileStorageService fileStorageService;
+
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+    private String processCatalogImageUrl(String imageUrl, String folder) {
+        if (imageUrl == null || imageUrl.isBlank()) {
+            return imageUrl;
+        }
+        if (imageUrl.contains("/storage/v1/object/public/") || imageUrl.contains("/storage/v1/s3")) {
+            return imageUrl;
+        }
+        if (fileStorageService != null && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"))) {
+            try {
+                String s3Url = fileStorageService.storeFromUrl(imageUrl, folder);
+                if (s3Url != null && !s3Url.isBlank()) {
+                    return s3Url;
+                }
+            } catch (Exception e) {
+                log.warn("Notice: could not store remote image to S3 for folder {}: {}", folder, e.getMessage());
+            }
+        }
+        return imageUrl;
+    }
+
+    private void syncCategoryJsonToS3(Category category) {
+        if (supabaseStorageService == null || category == null || category.getId() == null) {
+            return;
+        }
+        try {
+            CategoryResponseDTO dto = mapToCategoryResponseDTO(category, true);
+            byte[] bytes = objectMapper.writeValueAsBytes(dto);
+            supabaseStorageService.uploadCatalogJson("categories/" + category.getId() + "/category.json", bytes);
+            log.info("Synced Category JSON to S3: categories/{}/category.json", category.getId());
+        } catch (Exception e) {
+            log.warn("Notice: could not sync category JSON to S3: {}", e.getMessage());
+        }
+    }
+
+    private void syncSubCategoryJsonToS3(ServiceItem item) {
+        if (supabaseStorageService == null || item == null || item.getId() == null) {
+            return;
+        }
+        try {
+            SubCategoryResponseDTO dto = mapToSubCategoryResponseDTO(item);
+            byte[] bytes = objectMapper.writeValueAsBytes(dto);
+            supabaseStorageService.uploadCatalogJson("subcategories/" + item.getId() + "/subcategory.json", bytes);
+            log.info("Synced SubCategory JSON to S3: subcategories/{}/subcategory.json", item.getId());
+        } catch (Exception e) {
+            log.warn("Notice: could not sync subcategory JSON to S3: {}", e.getMessage());
+        }
+    }
+
+    private void syncVariantJsonToS3(Variant variant) {
+        if (supabaseStorageService == null || variant == null || variant.getId() == null) {
+            return;
+        }
+        try {
+            VariantResponseDTO dto = mapToVariantResponseDTO(variant);
+            byte[] bytes = objectMapper.writeValueAsBytes(dto);
+            supabaseStorageService.uploadCatalogJson("variants/" + variant.getId() + "/variant.json", bytes);
+            log.info("Synced Variant JSON to S3: variants/{}/variant.json", variant.getId());
+        } catch (Exception e) {
+            log.warn("Notice: could not sync variant JSON to S3: {}", e.getMessage());
+        }
+    }
+
     // ==========================================
     // 1. SERVICE (TOP LEVEL)
     // ==========================================
@@ -223,18 +293,20 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
         BigDecimal finalAmount = calculateFinalAmount(amount, discount, request.getFinalAmount());
 
+        String iconUrl = processCatalogImageUrl(request.getImageUrl(), "categories");
         Category category = Category.builder()
                 .name(lowerCaseName)
                 .description(request.getDescription())
                 .amount(amount)
                 .discount(discount)
                 .finalAmount(finalAmount)
-                .iconUrl(request.getImageUrl())
+                .iconUrl(iconUrl)
                 .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .isActive(isActive)
                 .build();
 
         Category saved = categoryRepository.save(category);
+        syncCategoryJsonToS3(saved);
         log.info("Created standalone Category with ID: {} and Name: {}", saved.getId(), saved.getName());
         return mapToCategoryResponseDTO(saved, false);
     }
@@ -272,6 +344,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
         BigDecimal finalAmount = calculateFinalAmount(amount, discount, request.getFinalAmount());
 
+        String iconUrl = processCatalogImageUrl(request.getImageUrl(), "categories");
         Category category = Category.builder()
                 .service(parentService)
                 .name(lowerCaseName)
@@ -279,12 +352,13 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
                 .amount(amount)
                 .discount(discount)
                 .finalAmount(finalAmount)
-                .iconUrl(request.getImageUrl())
+                .iconUrl(iconUrl)
                 .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .isActive(isActive)
                 .build();
 
         Category saved = categoryRepository.save(category);
+        syncCategoryJsonToS3(saved);
         log.info("Created Category with ID: {} under Service: {}", saved.getId(), parentService.getName());
         return mapToCategoryResponseDTO(saved, false);
     }
@@ -389,7 +463,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         category.calculateFinalAmount();
 
         if (request.getImageUrl() != null) {
-            category.setIconUrl(request.getImageUrl());
+            category.setIconUrl(processCatalogImageUrl(request.getImageUrl(), "categories"));
         }
 
         if (request.getDisplayOrder() != null) {
@@ -402,6 +476,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         }
 
         Category saved = categoryRepository.save(category);
+        syncCategoryJsonToS3(saved);
         log.info("Updated Category with ID: {}", saved.getId());
         return mapToCategoryResponseDTO(saved, false);
     }
@@ -422,6 +497,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
 
         category.setIsActive(CatalogStatus.toBoolean(catalogStatus));
         Category saved = categoryRepository.save(category);
+        syncCategoryJsonToS3(saved);
         log.info("Updated status of Category ID: {} to {}", saved.getId(), saved.getStatus());
         return mapToCategoryResponseDTO(saved, false);
     }
@@ -490,6 +566,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         // Backend strictly calculates finalAmount
         BigDecimal finalAmount = calculateFinalAmount(basePrice, discount, request.getDiscountPrice());
 
+        String itemImage = processCatalogImageUrl(request.getImageUrl(), "subcategories");
         ServiceItem serviceItem = ServiceItem.builder()
                 .category(parentCategory)
                 .name(lowerCaseName)
@@ -498,11 +575,12 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
                 .discount(discount)
                 .discountPrice(finalAmount)
                 .finalAmount(finalAmount)
-                .imageUrl(request.getImageUrl())
+                .imageUrl(itemImage)
                 .isActive(isActive)
                 .build();
 
         ServiceItem saved = serviceItemRepository.save(serviceItem);
+        syncSubCategoryJsonToS3(saved);
         log.info("Created Sub-Category with ID: {} under parent Category: {}", saved.getId(), parentCategory.getName());
         return mapToSubCategoryResponseDTO(saved);
     }
@@ -630,7 +708,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         serviceItem.calculateFinalAmount();
 
         if (request.getImageUrl() != null) {
-            serviceItem.setImageUrl(request.getImageUrl());
+            serviceItem.setImageUrl(processCatalogImageUrl(request.getImageUrl(), "subcategories"));
         }
 
         if (request.getStatus() != null) {
@@ -639,6 +717,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         }
 
         ServiceItem saved = serviceItemRepository.save(serviceItem);
+        syncSubCategoryJsonToS3(saved);
         log.info("Updated Sub-Category with ID: {}", saved.getId());
         return mapToSubCategoryResponseDTO(saved);
     }
@@ -659,6 +738,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
 
         item.setIsActive(CatalogStatus.toBoolean(catalogStatus));
         ServiceItem saved = serviceItemRepository.save(item);
+        syncSubCategoryJsonToS3(saved);
         log.info("Updated status of Sub-Category ID: {} to {}", saved.getId(), saved.getStatus());
         return mapToSubCategoryResponseDTO(saved);
     }
@@ -715,6 +795,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         // Backend strictly calculates finalAmount
         BigDecimal finalAmount = calculateFinalAmount(amount, discount, null);
 
+        String varImage = processCatalogImageUrl(request.getImageUrl(), "variants");
         Variant variant = Variant.builder()
                 .subcategory(parentSubCategory)
                 .name(lowerCaseName)
@@ -722,12 +803,13 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
                 .amount(amount)
                 .discount(discount)
                 .finalAmount(finalAmount)
-                .imageUrl(request.getImageUrl())
+                .imageUrl(varImage)
                 .status(isActive ? "ACTIVE" : "INACTIVE")
                 .isActive(isActive)
                 .build();
 
         Variant saved = variantRepository.save(variant);
+        syncVariantJsonToS3(saved);
         log.info("Created Variant with ID: {} under parent Sub-Category: {}", saved.getId(), parentSubCategory.getName());
         return mapToVariantResponseDTO(saved);
     }
@@ -809,7 +891,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         variant.calculateFinalAmount();
 
         if (request.getImageUrl() != null) {
-            variant.setImageUrl(request.getImageUrl());
+            variant.setImageUrl(processCatalogImageUrl(request.getImageUrl(), "variants"));
         }
 
         if (request.getStatus() != null) {
@@ -819,6 +901,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         }
 
         Variant saved = variantRepository.save(variant);
+        syncVariantJsonToS3(saved);
         log.info("Updated Variant with ID: {}", saved.getId());
         return mapToVariantResponseDTO(saved);
     }
@@ -840,6 +923,7 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         variant.setStatus(catalogStatus.name());
         variant.setIsActive(CatalogStatus.toBoolean(catalogStatus));
         Variant saved = variantRepository.save(variant);
+        syncVariantJsonToS3(saved);
         log.info("Updated status of Variant ID: {} to {}", saved.getId(), saved.getStatus());
         return mapToVariantResponseDTO(saved);
     }
@@ -1056,5 +1140,73 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
         serviceItemRepository.deleteAll();
         categoryRepository.deleteAll();
         catalogServiceRepository.deleteAll();
+    }
+
+    @Override
+    @Transactional
+    public java.util.Map<String, Object> syncAllCatalogToS3() {
+        log.info("Initiating full catalog sync to S3 storage...");
+        int catCount = 0;
+        int subCount = 0;
+        int varCount = 0;
+
+        List<Category> categories = categoryRepository.findAll();
+        for (Category cat : categories) {
+            if (cat.getIconUrl() != null && !cat.getIconUrl().isBlank()) {
+                String newUrl = processCatalogImageUrl(cat.getIconUrl(), "categories");
+                if (!newUrl.equals(cat.getIconUrl())) {
+                    cat.setIconUrl(newUrl);
+                    categoryRepository.save(cat);
+                }
+            }
+            syncCategoryJsonToS3(cat);
+            catCount++;
+        }
+
+        List<ServiceItem> items = serviceItemRepository.findAll();
+        for (ServiceItem item : items) {
+            if (item.getImageUrl() != null && !item.getImageUrl().isBlank()) {
+                String newUrl = processCatalogImageUrl(item.getImageUrl(), "subcategories");
+                if (!newUrl.equals(item.getImageUrl())) {
+                    item.setImageUrl(newUrl);
+                    serviceItemRepository.save(item);
+                }
+            }
+            syncSubCategoryJsonToS3(item);
+            subCount++;
+        }
+
+        List<Variant> variants = variantRepository.findAll();
+        for (Variant var : variants) {
+            if (var.getImageUrl() != null && !var.getImageUrl().isBlank()) {
+                String newUrl = processCatalogImageUrl(var.getImageUrl(), "variants");
+                if (!newUrl.equals(var.getImageUrl())) {
+                    var.setImageUrl(newUrl);
+                    variantRepository.save(var);
+                }
+            }
+            syncVariantJsonToS3(var);
+            varCount++;
+        }
+
+        String treeUrl = null;
+        if (supabaseStorageService != null) {
+            try {
+                List<CategoryResponseDTO> tree = getActiveCategories();
+                byte[] treeBytes = objectMapper.writeValueAsBytes(tree);
+                treeUrl = supabaseStorageService.uploadCatalogJson("catalog/catalog-tree.json", treeBytes);
+            } catch (Exception e) {
+                log.warn("Notice: could not upload catalog-tree.json to S3: {}", e.getMessage());
+            }
+        }
+
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("success", true);
+        result.put("categoriesSynced", catCount);
+        result.put("subcategoriesSynced", subCount);
+        result.put("variantsSynced", varCount);
+        result.put("catalogTreeUrl", treeUrl);
+        result.put("message", "Catalog successfully synchronized to S3 bucket");
+        return result;
     }
 }

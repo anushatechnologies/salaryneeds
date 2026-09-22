@@ -111,4 +111,22 @@ public class CatalogS3StorageTest {
         assertTrue(resultUrl.contains("categories/"));
         verify(s3Client, times(1)).putObject(any(PutObjectRequest.class), any(RequestBody.class));
     }
+
+    @Test
+    @DisplayName("Upload Catalog JSON sends PutObjectRequest with application/json contentType")
+    void testUploadCatalogJson() {
+        byte[] jsonBytes = "{\"test\": \"data\"}".getBytes();
+        String resultUrl = supabaseStorageService.uploadCatalogJson("catalog/catalog-tree.json", jsonBytes);
+
+        assertNotNull(resultUrl);
+        assertTrue(resultUrl.contains("/storage/v1/object/public/salaryneeds/catalog/catalog-tree.json"));
+
+        ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client, times(1)).putObject(captor.capture(), any(RequestBody.class));
+
+        PutObjectRequest captured = captor.getValue();
+        assertEquals("salaryneeds", captured.bucket());
+        assertEquals("catalog/catalog-tree.json", captured.key());
+        assertEquals("application/json", captured.contentType());
+    }
 }
