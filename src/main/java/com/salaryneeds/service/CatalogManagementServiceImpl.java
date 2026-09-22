@@ -38,16 +38,6 @@ public class CatalogManagementServiceImpl implements CatalogManagementService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private FileStorageService fileStorageService;
 
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = createObjectMapper();
-
-    private static com.fasterxml.jackson.databind.ObjectMapper createObjectMapper() {
-        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-        mapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        return mapper;
-    }
-
     private String processCatalogImageUrl(String imageUrl, String folder) {
         if (imageUrl == null || imageUrl.isBlank()) {
             return imageUrl;

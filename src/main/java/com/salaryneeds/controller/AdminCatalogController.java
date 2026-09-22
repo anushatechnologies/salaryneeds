@@ -517,9 +517,6 @@ public class AdminCatalogController {
         return ResponseEntity.ok(result);
     }
 
-    private String currentSubStatus(SubCategoryResponseDTO sub) {
-        return (sub != null && sub.getStatus() != null) ? sub.getStatus() : "ACTIVE";
-    }
 
     private String resolveStatusFromBody(java.util.Map<String, Object> body) {
         if (body == null || body.isEmpty()) {
