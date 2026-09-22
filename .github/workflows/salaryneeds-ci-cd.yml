@@ -75,10 +75,12 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             echo "Writing Supabase PostgreSQL credentials to environment file..."
-            sudo tee /opt/salaryneeds/salaryneeds.env > /dev/null <<'ENVEOF'
+            SUPABASE_SECRET="${{ secrets.SUPABASE_DB_PASSWORD }}"
+            DB_PASS="${SUPABASE_SECRET:-SalaryNeeds@123}"
+            sudo tee /opt/salaryneeds/salaryneeds.env > /dev/null <<ENVEOF
             DB_URL=jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require&prepareThreshold=0
             DB_USER=postgres.jbgctbgqymrdurkumwes
-            DB_PASSWORD=${{ secrets.SUPABASE_DB_PASSWORD || 'SalaryNeeds@123' }}
+            DB_PASSWORD=${DB_PASS}
             DB_DRIVER=org.postgresql.Driver
             SPRING_JPA_HIBERNATE_DDL_AUTO=update
             SERVER_PORT=8080
