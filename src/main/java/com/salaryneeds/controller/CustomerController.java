@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/customers")
+@RequestMapping({"/api/customers", "/api/v1/customers", "/customers", "/v1/customers"})
 @RequiredArgsConstructor
 public class CustomerController {
 
