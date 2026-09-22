@@ -39,4 +39,33 @@ public class WorkerRegisterRequest {
     private String address;
     private List<String> serviceAreas;
     private List<String> skills;
+
+    @com.fasterxml.jackson.annotation.JsonAlias({"aadhar_number", "aadharNo", "aadhar_no", "aadhaarNumber", "aadhaar_number", "aadhaarNo", "aadhaar_no"})
+    private String aadharNumber;
+
+    @com.fasterxml.jackson.annotation.JsonAlias({"pan_number", "panNo", "pan_no", "panCardNumber", "pan_card_number"})
+    private String panNumber;
+
+    @com.fasterxml.jackson.annotation.JsonAlias({"aadhar", "aadhar_url", "aadharCard", "aadhaar", "aadhaar_url"})
+    private String aadharUrl;
+
+    @com.fasterxml.jackson.annotation.JsonAlias({"pan", "pan_url", "panCard"})
+    private String panUrl;
+
+    private org.springframework.web.multipart.MultipartFile aadharFile;
+    private org.springframework.web.multipart.MultipartFile panFile;
+
+    public String getEffectiveAadharNumber() {
+        if (aadharNumber != null && !aadharNumber.isBlank()) {
+            return aadharNumber.replaceAll("\\s+", "").trim();
+        }
+        return null;
+    }
+
+    public String getEffectivePanNumber() {
+        if (panNumber != null && !panNumber.isBlank()) {
+            return panNumber.replaceAll("\\s+", "").trim().toUpperCase();
+        }
+        return null;
+    }
 }

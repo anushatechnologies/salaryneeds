@@ -6,7 +6,6 @@ import com.salaryneeds.dto.WalletResponseDTO;
 import com.salaryneeds.dto.WithdrawRequest;
 import com.salaryneeds.entity.WalletTransaction;
 import com.salaryneeds.entity.WorkerWallet;
-import com.salaryneeds.entity.enums.TransactionType;
 import com.salaryneeds.exception.ApiException;
 import com.salaryneeds.repository.WalletTransactionRepository;
 import com.salaryneeds.repository.WorkerWalletRepository;

@@ -125,6 +125,10 @@ public class AdminCatalogController {
             @PathVariable(required = false) UUID serviceId,
             @Valid @RequestBody CategoryRequestDTO request
     ) {
+        if (request.getImageUrl() != null && (request.getImageUrl().startsWith("http://") || request.getImageUrl().startsWith("https://"))) {
+            String s3Url = fileStorageService.storeFromUrl(request.getImageUrl(), "categories");
+            request.setImageUrl(s3Url);
+        }
         CategoryResponseDTO response;
         if (serviceId != null) {
             request.setServiceId(serviceId);
@@ -237,6 +241,10 @@ public class AdminCatalogController {
             @PathVariable(required = false) UUID categoryId,
             @Valid @RequestBody SubCategoryRequestDTO request
     ) {
+        if (request.getImageUrl() != null && (request.getImageUrl().startsWith("http://") || request.getImageUrl().startsWith("https://"))) {
+            String s3Url = fileStorageService.storeFromUrl(request.getImageUrl(), "subcategories");
+            request.setImageUrl(s3Url);
+        }
         SubCategoryResponseDTO response;
         if (categoryId != null) {
             request.setCategoryId(categoryId);
@@ -327,6 +335,10 @@ public class AdminCatalogController {
             @PathVariable Long subCategoryId,
             @Valid @RequestBody VariantRequestDTO request
     ) {
+        if (request.getImageUrl() != null && (request.getImageUrl().startsWith("http://") || request.getImageUrl().startsWith("https://"))) {
+            String s3Url = fileStorageService.storeFromUrl(request.getImageUrl(), "variants");
+            request.setImageUrl(s3Url);
+        }
         VariantResponseDTO response = catalogManagementService.createVariant(subCategoryId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -381,5 +393,15 @@ public class AdminCatalogController {
         response.put("success", true);
         response.put("message", "All catalog data (categories, subcategories, variants) removed successfully from database");
         return ResponseEntity.ok(response);
+    }
+
+    // ==========================================
+    // 6. SYNC CATALOG TO S3 STORAGE
+    // ==========================================
+
+    @PostMapping({"/sync-to-s3", "/catalog/sync-to-s3", "/categories/sync-to-s3"})
+    public ResponseEntity<java.util.Map<String, Object>> syncCatalogToS3() {
+        java.util.Map<String, Object> result = catalogManagementService.syncAllCatalogToS3();
+        return ResponseEntity.ok(result);
     }
 }

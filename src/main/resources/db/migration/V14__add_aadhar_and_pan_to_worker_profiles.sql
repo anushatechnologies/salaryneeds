@@ -1,0 +1,6 @@
+-- Add aadhar_number and pan_number to WORKER_PROFILES
+ALTER TABLE WORKER_PROFILES ADD COLUMN IF NOT EXISTS aadhar_number VARCHAR(30);
+ALTER TABLE WORKER_PROFILES ADD COLUMN IF NOT EXISTS pan_number VARCHAR(30);
+
+CREATE INDEX IF NOT EXISTS idx_worker_profiles_aadhar ON WORKER_PROFILES(aadhar_number);
+CREATE INDEX IF NOT EXISTS idx_worker_profiles_pan ON WORKER_PROFILES(pan_number);

@@ -3,13 +3,10 @@ package com.salaryneeds.service;
 import com.salaryneeds.dto.CallResponseDTO;
 import com.salaryneeds.dto.InitiateCallRequestDTO;
 import com.salaryneeds.entity.Booking;
-import com.salaryneeds.entity.WorkerProfile;
 import com.salaryneeds.entity.enums.BookingStatus;
 import com.salaryneeds.exception.BookingNotFoundException;
 import com.salaryneeds.exception.InvalidBookingStateException;
 import com.salaryneeds.repository.BookingRepository;
-import com.salaryneeds.repository.WorkerProfileRepository;
-import com.salaryneeds.util.GeoDistanceUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,7 +21,6 @@ import java.util.UUID;
 public class CallBridgeServiceImpl implements CallBridgeService {
 
     private final BookingRepository bookingRepository;
-    private final WorkerProfileRepository workerProfileRepository;
 
     @Override
     @Transactional(readOnly = true)

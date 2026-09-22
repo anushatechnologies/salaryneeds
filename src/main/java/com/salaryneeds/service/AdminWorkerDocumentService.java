@@ -3,11 +3,9 @@ package com.salaryneeds.service;
 import com.salaryneeds.dto.AdminWorkerDocumentDTO;
 import com.salaryneeds.entity.WorkerDocument;
 import com.salaryneeds.entity.enums.DocType;
-import com.salaryneeds.exception.ApiException;
 import com.salaryneeds.repository.WorkerDocumentRepository;
 import com.salaryneeds.repository.WorkerProfileRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

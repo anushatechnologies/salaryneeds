@@ -54,6 +54,18 @@ public class WorkerProfileDTO {
     private String city;
     private String address;
 
+    @com.fasterxml.jackson.annotation.JsonAlias({"aadhar_number", "aadharNo", "aadharNumber"})
+    private String aadharNumber;
+
+    @com.fasterxml.jackson.annotation.JsonAlias({"pan_number", "panNo", "panNumber"})
+    private String panNumber;
+
+    @com.fasterxml.jackson.annotation.JsonAlias({"aadhar_url", "aadharUrl"})
+    private String aadharUrl;
+
+    @com.fasterxml.jackson.annotation.JsonAlias({"pan_url", "panUrl"})
+    private String panUrl;
+
     @com.fasterxml.jackson.annotation.JsonAlias({"service_areas", "serviceAreas"})
     private List<String> serviceAreas;
 
@@ -204,6 +216,10 @@ public class WorkerProfileDTO {
                 .name(p.getName())
                 .email(p.getEmail())
                 .phone(p.getPhone())
+                .aadharNumber(p.getAadharNumber())
+                .panNumber(p.getPanNumber())
+                .aadharUrl(p.getAadharUrl())
+                .panUrl(p.getPanUrl())
                 .categoryId(p.getCategoryId() != null ? p.getCategoryId().toString() : null)
                 .categoryName(p.getCategoryName())
                 .service(p.getService())

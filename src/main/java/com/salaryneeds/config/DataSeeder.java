@@ -55,7 +55,7 @@ public class DataSeeder implements CommandLineRunner {
                     .displayOrder(4)
                     .isActive(true)
                     .build());
-            Category cat5 = categoryRepository.save(Category.builder()
+            categoryRepository.save(Category.builder()
                     .id(UUID.fromString("55555555-5555-5555-5555-555555555555"))
                     .name("Salon for Women")
                     .description("Facial, manicure, pedicure, hair spa at doorstep")

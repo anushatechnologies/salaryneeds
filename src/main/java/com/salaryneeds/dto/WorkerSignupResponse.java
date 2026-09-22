@@ -14,4 +14,8 @@ import java.util.UUID;
 public class WorkerSignupResponse {
     private UUID worker_id;
     private String message;
+    private String aadharNumber;
+    private String panNumber;
+    private String aadharUrl;
+    private String panUrl;
 }

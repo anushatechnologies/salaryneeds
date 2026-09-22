@@ -6,3 +6,7 @@ target/
 *.log
 *.class
 data/
+*.mv.db
+*.lock.db
+salaryneeds_db*
+scratch/

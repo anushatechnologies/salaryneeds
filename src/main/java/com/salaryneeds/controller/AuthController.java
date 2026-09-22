@@ -17,8 +17,24 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @PostMapping("/register")
+    @PostMapping(value = "/register", consumes = {org.springframework.http.MediaType.APPLICATION_JSON_VALUE, org.springframework.http.MediaType.ALL_VALUE})
     public ResponseEntity<ApiResponse<WorkerProfileDTO>> register(@Valid @RequestBody WorkerRegisterRequest request) {
+        WorkerProfileDTO profile = authService.register(request);
+        return new ResponseEntity<>(ApiResponse.ok("Worker profile registered successfully.", profile), HttpStatus.CREATED);
+    }
+
+    @PostMapping(value = "/register", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<WorkerProfileDTO>> registerMultipart(
+            @ModelAttribute WorkerRegisterRequest request,
+            @RequestPart(value = "aadhar", required = false) org.springframework.web.multipart.MultipartFile aadhar,
+            @RequestPart(value = "pan", required = false) org.springframework.web.multipart.MultipartFile pan,
+            @RequestPart(value = "aadharFile", required = false) org.springframework.web.multipart.MultipartFile aadharFile,
+            @RequestPart(value = "panFile", required = false) org.springframework.web.multipart.MultipartFile panFile) {
+        if (aadhar != null && request.getAadharFile() == null) request.setAadharFile(aadhar);
+        if (aadharFile != null) request.setAadharFile(aadharFile);
+        if (pan != null && request.getPanFile() == null) request.setPanFile(pan);
+        if (panFile != null) request.setPanFile(panFile);
+
         WorkerProfileDTO profile = authService.register(request);
         return new ResponseEntity<>(ApiResponse.ok("Worker profile registered successfully.", profile), HttpStatus.CREATED);
     }

@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salaryneeds.controller.CouponController;
 import com.salaryneeds.dto.*;
 import com.salaryneeds.entity.enums.DiscountType;
-import com.salaryneeds.exception.BookingNotFoundException;
-import com.salaryneeds.exception.CouponNotFoundException;
 import com.salaryneeds.exception.GlobalExceptionHandler;
 import com.salaryneeds.service.CouponService;
 import org.junit.jupiter.api.DisplayName;

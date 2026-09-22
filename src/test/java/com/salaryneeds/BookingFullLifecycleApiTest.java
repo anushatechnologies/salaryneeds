@@ -1,7 +1,6 @@
 package com.salaryneeds;
 
 import com.salaryneeds.dto.*;
-import com.salaryneeds.entity.Address;
 import com.salaryneeds.entity.Booking;
 import com.salaryneeds.entity.WorkerLocation;
 import com.salaryneeds.entity.WorkerProfile;
@@ -15,7 +14,6 @@ import com.salaryneeds.service.BookingServiceImpl;
 import com.salaryneeds.service.CallBridgeServiceImpl;
 import com.salaryneeds.service.NotificationService;
 import com.salaryneeds.service.WorkerMatchingService;
-import com.salaryneeds.util.GeoDistanceUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +25,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

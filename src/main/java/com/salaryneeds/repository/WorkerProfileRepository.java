@@ -26,6 +26,14 @@ public interface WorkerProfileRepository extends JpaRepository<WorkerProfile, UU
 
     boolean existsByEmail(String email);
 
+    boolean existsByAadharNumber(String aadharNumber);
+
+    boolean existsByPanNumber(String panNumber);
+
+    Optional<WorkerProfile> findByAadharNumber(String aadharNumber);
+
+    Optional<WorkerProfile> findByPanNumber(String panNumber);
+
     List<WorkerProfile> findByDutyOnlineTrue();
 
     @Query("SELECT w FROM WorkerProfile w WHERE w.dutyOnline = TRUE AND w.category.id = :categoryId")
