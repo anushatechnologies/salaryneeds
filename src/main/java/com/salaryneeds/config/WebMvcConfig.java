@@ -17,7 +17,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     private final AdminAuthInterceptor adminAuthInterceptor;
 
-    @org.springframework.beans.factory.annotation.Value("${cors.allowed-origins:https://api.anjibabujob.com,https://anjibabujob.com,https://*.anjibabujob.com,http://localhost:3000,http://localhost:5173,http://localhost:8081,http://localhost:8080}")
+    @org.springframework.beans.factory.annotation.Value("${cors.allowed-origins:https://api.anjibabujob.com,https://anjibabujob.com,https://*.anjibabujob.com,http://localhost:*,http://127.0.0.1:*,http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:8081,http://localhost:8080}")
     private String allowedOrigins;
 
     @Override
